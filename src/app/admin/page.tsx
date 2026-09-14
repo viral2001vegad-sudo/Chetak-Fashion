@@ -330,8 +330,8 @@ export default function AdminDashboardPage() {
       <header className="sticky top-0 z-30 bg-white border-b border-gray-200 shadow-sm px-4 py-3">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="relative w-9 h-9 rounded-xl bg-brand-50 border border-brand-200 flex items-center justify-center p-1">
-              <Image src={BUSINESS_CONFIG.logoPath} alt="" width={32} height={32} className="object-contain" />
+            <div className="relative w-9 h-9 rounded-xl bg-brand-50 border border-brand-200 flex items-center justify-center p-1 overflow-hidden">
+              <img src="/logo.svg" alt="" className="w-full h-full object-contain" />
             </div>
             <div>
               <h1 className="font-serif text-lg font-bold text-gray-900 leading-none">

@@ -8,7 +8,6 @@ export async function GET() {
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
-    // Fallback to mock data if default placeholder URL or unconfigured
     if (!supabaseUrl || supabaseUrl.includes('example.supabase.co')) {
       const activeProducts = MOCK_PRODUCTS
         .filter(p => !p.is_hidden)
@@ -22,28 +21,36 @@ export async function GET() {
     }
 
     const supabase = createAdminClient();
-    const { data: dbProducts, error: prodError } = await supabase
-      .from('products')
-      .select('*, categories(name)')
-      .eq('is_hidden', false)
-      .order('sort_order', { ascending: true });
 
-    const { data: dbCategories, error: catError } = await supabase
+    // 1. Fetch categories
+    const { data: dbCategories } = await supabase
       .from('categories')
       .select('*')
       .order('sort_order', { ascending: true });
 
+    const categoriesList = dbCategories || [];
+    const catMap: Record<string, string> = {};
+    categoriesList.forEach(c => { catMap[c.id] = c.name; });
+
+    // 2. Fetch products safely without fragile join dependency
+    const { data: dbProducts, error: prodError } = await supabase
+      .from('products')
+      .select('*')
+      .eq('is_hidden', false)
+      .order('sort_order', { ascending: true });
+
     if (prodError || !dbProducts) {
+      console.error('Products fetch error:', prodError);
       return NextResponse.json({
         products: [],
-        categories: dbCategories || [],
+        categories: categoriesList,
         source: 'supabase'
       });
     }
 
     const mappedProducts: Product[] = dbProducts.map(p => ({
       ...p,
-      category_name: p.categories?.name || 'General'
+      category_name: p.category_id ? (catMap[p.category_id] || 'General') : 'General'
     }));
 
     // CRITICAL SECURITY: Sanitize products before returning to public client!
@@ -51,7 +58,7 @@ export async function GET() {
 
     return NextResponse.json({
       products: publicProducts,
-      categories: dbCategories || [],
+      categories: categoriesList,
       source: 'supabase'
     });
 
