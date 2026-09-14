@@ -34,9 +34,9 @@ export default function CataloguePage() {
     try {
       const res = await fetch(`/api/products?t=${Date.now()}`, { cache: 'no-store' });
       const data = await res.json();
-      if (data.products) {
+      if (Array.isArray(data.products) && data.products.length > 0) {
         setProducts(data.products);
-        setCategories(data.categories || MOCK_CATEGORIES);
+        setCategories(Array.isArray(data.categories) && data.categories.length > 0 ? data.categories : MOCK_CATEGORIES);
       } else {
         setProducts(MOCK_PRODUCTS);
         setCategories(MOCK_CATEGORIES);

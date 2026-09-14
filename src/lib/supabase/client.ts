@@ -5,7 +5,13 @@ const HARDCODED_ANON_KEY = 'sb_' + 'publishable_' + 'ziVG9q-SV1sPmzJs_mFq_A_yQA7
 
 export function getSupabaseUrl() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (url && url.startsWith('http') && !url.includes('example.supabase.co')) {
+  if (
+    url &&
+    url.startsWith('http') &&
+    !url.includes('example.supabase.co') &&
+    !url.includes('your-project') &&
+    !url.includes('placeholder')
+  ) {
     return url.trim();
   }
   return HARDCODED_URL;
@@ -13,7 +19,13 @@ export function getSupabaseUrl() {
 
 export function getSupabaseAnonKey() {
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (key && key.trim().length > 20 && !key.includes('example')) {
+  if (
+    key &&
+    key.trim().length > 20 &&
+    !key.includes('example') &&
+    !key.includes('your-') &&
+    !key.includes('placeholder')
+  ) {
     return key.trim();
   }
   return HARDCODED_ANON_KEY;

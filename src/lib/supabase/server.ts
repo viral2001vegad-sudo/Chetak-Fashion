@@ -5,17 +5,41 @@ const FALLBACK_KEY = Buffer.from('c2Jfc2VjcmV0X21OSmQ4c29OeGtyeW5wbmpQWU40Z195Sk
 
 export function getSupabaseUrl() {
   const envUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (envUrl && envUrl.startsWith('http') && !envUrl.includes('example.supabase.co')) {
+  if (
+    envUrl &&
+    envUrl.startsWith('http') &&
+    !envUrl.includes('example.supabase.co') &&
+    !envUrl.includes('your-project') &&
+    !envUrl.includes('placeholder')
+  ) {
     return envUrl.trim();
   }
   return FALLBACK_URL;
 }
 
 export function getSupabaseKey() {
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (key && key.trim().length > 20 && !key.includes('example')) {
-    return key.trim();
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (
+    serviceKey &&
+    serviceKey.trim().length > 20 &&
+    !serviceKey.includes('example') &&
+    !serviceKey.includes('your-') &&
+    !serviceKey.includes('placeholder')
+  ) {
+    return serviceKey.trim();
   }
+
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (
+    anonKey &&
+    anonKey.trim().length > 20 &&
+    !anonKey.includes('example') &&
+    !anonKey.includes('your-') &&
+    !anonKey.includes('placeholder')
+  ) {
+    return anonKey.trim();
+  }
+
   return FALLBACK_KEY;
 }
 
