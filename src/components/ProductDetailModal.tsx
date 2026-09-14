@@ -83,20 +83,29 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 className="object-cover transition-all duration-300"
               />
 
+              {/* Photo Counter Badge */}
+              {images.length > 1 && (
+                <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-md text-white text-[11px] font-bold px-2.5 py-1 rounded-full shadow">
+                  Photo {selectedImageIndex + 1} of {images.length}
+                </div>
+              )}
+
               {/* Prev / Next controls if multiple images */}
               {images.length > 1 && (
                 <>
                   <button
                     onClick={() => setSelectedImageIndex((prev) => (prev > 0 ? prev - 1 : images.length - 1))}
-                    className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white text-gray-800 p-1.5 rounded-full shadow"
+                    className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-gray-900 p-2 rounded-full shadow-lg transition-transform active:scale-95"
+                    title="Previous Photo"
                   >
-                    <ChevronLeft className="w-4 h-4" />
+                    <ChevronLeft className="w-5 h-5" />
                   </button>
                   <button
                     onClick={() => setSelectedImageIndex((prev) => (prev < images.length - 1 ? prev + 1 : 0))}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white text-gray-800 p-1.5 rounded-full shadow"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-gray-900 p-2 rounded-full shadow-lg transition-transform active:scale-95"
+                    title="Next Photo"
                   >
-                    <ChevronRight className="w-4 h-4" />
+                    <ChevronRight className="w-5 h-5" />
                   </button>
                 </>
               )}
@@ -104,13 +113,13 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
             {/* Thumbnail Navigation strip */}
             {images.length > 1 && (
-              <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
+              <div className="flex gap-2 mt-3 overflow-x-auto pb-1 scrollbar-none">
                 {images.map((img, idx) => (
                   <button
                     key={idx}
                     onClick={() => setSelectedImageIndex(idx)}
-                    className={`relative w-14 h-14 rounded-lg overflow-hidden border-2 shrink-0 ${
-                      selectedImageIndex === idx ? 'border-brand-600 ring-2 ring-brand-500/30' : 'border-transparent opacity-70'
+                    className={`relative w-16 h-16 rounded-xl overflow-hidden border-2 shrink-0 transition-all ${
+                      selectedImageIndex === idx ? 'border-brand-600 ring-2 ring-brand-500/30 scale-105' : 'border-transparent opacity-60 hover:opacity-100'
                     }`}
                   >
                     <Image src={img} alt="" fill className="object-cover" />

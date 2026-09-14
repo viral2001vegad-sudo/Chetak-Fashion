@@ -30,27 +30,32 @@ export default function CataloguePage() {
   const [bucket, setBucket] = useState<EnquiryItem[]>([]);
 
   // Fetch initial products
-  useEffect(() => {
-    async function fetchProducts() {
-      try {
-        const res = await fetch('/api/products');
-        const data = await res.json();
-        if (data.products) {
-          setProducts(data.products);
-          setCategories(data.categories || MOCK_CATEGORIES);
-        } else {
-          setProducts(MOCK_PRODUCTS);
-          setCategories(MOCK_CATEGORIES);
-        }
-      } catch (err) {
+  const fetchProducts = async () => {
+    try {
+      const res = await fetch(`/api/products?t=${Date.now()}`, { cache: 'no-store' });
+      const data = await res.json();
+      if (data.products) {
+        setProducts(data.products);
+        setCategories(data.categories || MOCK_CATEGORIES);
+      } else {
         setProducts(MOCK_PRODUCTS);
         setCategories(MOCK_CATEGORIES);
-      } finally {
-        setIsLoading(false);
       }
+    } catch (err) {
+      setProducts(MOCK_PRODUCTS);
+      setCategories(MOCK_CATEGORIES);
+    } finally {
+      setIsLoading(false);
     }
+  };
 
+  useEffect(() => {
     fetchProducts();
+
+    // Re-fetch when user switches back to this tab
+    const handleFocus = () => fetchProducts();
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
   }, []);
 
   // Handle password unlock success

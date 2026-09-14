@@ -38,12 +38,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   };
 
   return (
-    <div className="group relative bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-card transition-all duration-300 flex flex-col overflow-hidden">
+    <div 
+      onClick={handleCardClick}
+      className="group relative bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-card transition-all duration-300 flex flex-col overflow-hidden cursor-pointer"
+    >
       {/* Image Thumbnail Container */}
-      <div 
-        onClick={handleCardClick}
-        className="relative aspect-[4/5] w-full bg-gray-100 overflow-hidden cursor-pointer"
-      >
+      <div className="relative aspect-[4/5] w-full bg-gray-100 overflow-hidden">
         <Image
           src={displayImage}
           alt={product.name}
@@ -54,7 +54,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           }`}
         />
 
-        {/* Lock Pill Badge (High contrast Gold pill always visible on locked card) */}
+        {/* Multiple Photos Badge */}
+        {!isLocked && product.images && product.images.length > 1 && (
+          <div className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-md text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow">
+            📷 {product.images.length} Photos
+          </div>
+        )}
+
+        {/* Lock Pill Badge */}
         {isLocked && (
           <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] flex flex-col items-center justify-center p-3 text-center transition-opacity">
             <div className="bg-accent text-gray-900 font-bold px-3 py-1.5 rounded-full text-xs flex items-center gap-1.5 shadow-lg border border-yellow-200 animate-pulse">
@@ -98,10 +105,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           </div>
 
           {/* Product Title */}
-          <h3 
-            onClick={handleCardClick}
-            className="font-semibold text-sm text-gray-900 line-clamp-2 hover:text-brand-600 transition-colors cursor-pointer leading-snug"
-          >
+          <h3 className="font-semibold text-sm text-gray-900 line-clamp-2 hover:text-brand-600 transition-colors leading-snug">
             {product.name}
           </h3>
 
@@ -129,7 +133,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         <div className="mt-3 pt-2.5 border-t border-gray-100">
           {isLocked ? (
             <button
-              onClick={() => onOpenUnlockModal(product)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenUnlockModal(product);
+              }}
               className="w-full bg-accent hover:bg-accent-hover text-gray-950 font-bold py-2 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all active:scale-[0.98]"
             >
               <Lock className="w-3.5 h-3.5" />
@@ -137,7 +144,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             </button>
           ) : (
             <button
-              onClick={() => onAddToEnquiry(product)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddToEnquiry(product);
+              }}
               disabled={isOutOfStock}
               className={`w-full font-semibold py-2 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all ${
                 isOutOfStock
