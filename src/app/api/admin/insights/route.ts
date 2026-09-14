@@ -7,25 +7,6 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-
-    if (!supabaseUrl || supabaseUrl.includes('example.supabase.co')) {
-      const topViewed = [...MOCK_PRODUCTS].sort((a, b) => b.view_count - a.view_count).slice(0, 5);
-      const topEnquired = [...MOCK_PRODUCTS].sort((a, b) => b.enquiry_count - a.enquiry_count).slice(0, 5);
-
-      return NextResponse.json({
-        totalVisits: MOCK_PAGE_VIEWS_COUNT,
-        totalEnquiries: MOCK_ENQUIRIES_COUNT,
-        totalProducts: MOCK_PRODUCTS.length,
-        hiddenProducts: MOCK_PRODUCTS.filter(p => p.is_hidden).length,
-        lockedProducts: MOCK_PRODUCTS.filter(p => p.is_locked).length,
-        outOfStockProducts: MOCK_PRODUCTS.filter(p => !p.in_stock).length,
-        topViewed,
-        topEnquired,
-        source: 'seed_data'
-      });
-    }
-
     const supabase = createAdminClient();
 
     // Fetch page views count

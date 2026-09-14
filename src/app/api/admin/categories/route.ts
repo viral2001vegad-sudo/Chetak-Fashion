@@ -9,12 +9,6 @@ const isUUID = (str?: string) => str ? /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-
 // Admin GET - fetch all categories
 export async function GET() {
   try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-
-    if (!supabaseUrl || supabaseUrl.includes('example.supabase.co')) {
-      return NextResponse.json({ categories: [] });
-    }
-
     const supabase = createAdminClient();
     const { data, error } = await supabase
       .from('categories')
@@ -45,37 +39,33 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: 'Category name is required' }, { status: 400 });
     }
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabase = createAdminClient();
 
-    if (supabaseUrl && !supabaseUrl.includes('example.supabase.co')) {
-      const supabase = createAdminClient();
+    if (id && isUUID(id)) {
+      // Update existing category in Supabase
+      const { data, error } = await supabase
+        .from('categories')
+        .update({ name: categoryName, sort_order: sort_order || 0 })
+        .eq('id', id)
+        .select()
+        .single();
 
-      if (id && isUUID(id)) {
-        // Update existing category in Supabase
-        const { data, error } = await supabase
-          .from('categories')
-          .update({ name: categoryName, sort_order: sort_order || 0 })
-          .eq('id', id)
-          .select()
-          .single();
-
-        if (!error && data) {
-          return NextResponse.json({ category: data, message: 'Category updated in Supabase' });
-        }
-        if (error) console.error('Category update error:', error);
-      } else {
-        // Insert new category in Supabase (let Supabase generate UUID id)
-        const { data, error } = await supabase
-          .from('categories')
-          .insert({ name: categoryName, sort_order: sort_order || 0 })
-          .select()
-          .single();
-
-        if (!error && data) {
-          return NextResponse.json({ category: data, message: 'Category added to Supabase' });
-        }
-        if (error) console.error('Category insert error:', error);
+      if (!error && data) {
+        return NextResponse.json({ category: data, message: 'Category updated in Supabase' });
       }
+      if (error) console.error('Category update error:', error);
+    } else {
+      // Insert new category in Supabase (let Supabase generate UUID id)
+      const { data, error } = await supabase
+        .from('categories')
+        .insert({ name: categoryName, sort_order: sort_order || 0 })
+        .select()
+        .single();
+
+      if (!error && data) {
+        return NextResponse.json({ category: data, message: 'Category added to Supabase' });
+      }
+      if (error) console.error('Category insert error:', error);
     }
 
     // Fallback category
@@ -111,13 +101,9 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ message: 'Category ID required' }, { status: 400 });
     }
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-
-    if (supabaseUrl && !supabaseUrl.includes('example.supabase.co')) {
-      const supabase = createAdminClient();
-      if (isUUID(id)) {
-        await supabase.from('categories').delete().eq('id', id);
-      }
+    const supabase = createAdminClient();
+    if (isUUID(id)) {
+      await supabase.from('categories').delete().eq('id', id);
     }
 
     return NextResponse.json({ success: true, message: 'Category deleted successfully' });

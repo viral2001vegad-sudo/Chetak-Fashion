@@ -5,12 +5,6 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-
-    if (!supabaseUrl || supabaseUrl.includes('example.supabase.co')) {
-      return NextResponse.json({ categories: [] });
-    }
-
     const supabase = createAdminClient();
     const { data, error } = await supabase
       .from('categories')

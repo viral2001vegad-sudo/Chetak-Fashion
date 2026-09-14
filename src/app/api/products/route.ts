@@ -9,20 +9,6 @@ export const revalidate = 0;
 
 export async function GET() {
   try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-
-    if (!supabaseUrl || supabaseUrl.includes('example.supabase.co')) {
-      const activeProducts = MOCK_PRODUCTS
-        .filter(p => !p.is_hidden)
-        .map(sanitizeProductForPublic);
-
-      return NextResponse.json({
-        products: activeProducts,
-        categories: MOCK_CATEGORIES,
-        source: 'seed_data'
-      });
-    }
-
     const supabase = createAdminClient();
 
     // 1. Fetch categories
