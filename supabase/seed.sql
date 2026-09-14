@@ -109,7 +109,7 @@ insert into public.products (
 values (
   '33333333-3333-3333-3333-333333333333',
   '👉 GHOOMAR 👈 Vol 07 Rayon Cotton Suit Material',
-  '居 Top: RAYON COTTON PRINT Kat Dana , Dhagatikali combo WORK (2.50MTR)
+  '👚 Top: RAYON COTTON PRINT Kat Dana , Dhagatikali combo WORK (2.50MTR)
 👖 Bottom: RAYON COTTON (2.50MTR)
 🧣 Dupatta: RAYON COTTON PRINT (2.25 MTR)
 📦 Packing: 8 Pcs Photo + Pauch + Bag (Billing Plus GST)
