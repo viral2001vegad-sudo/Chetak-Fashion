@@ -37,18 +37,15 @@ export async function POST(
 
     let targetProduct: Product | undefined;
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    if (supabaseUrl && !supabaseUrl.includes('example.supabase.co')) {
-      const supabase = createAdminClient();
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .eq('id', productId)
-        .single();
+    const supabase = createAdminClient();
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .eq('id', productId)
+      .single();
 
-      if (data && !error) {
-        targetProduct = data as Product;
-      }
+    if (data && !error) {
+      targetProduct = data as Product;
     }
 
     // Fallback to mock data lookup if database record not found or unconfigured
