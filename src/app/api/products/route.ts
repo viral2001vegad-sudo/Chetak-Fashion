@@ -51,11 +51,12 @@ export async function GET() {
       source: 'supabase'
     });
 
-  } catch (err) {
+  } catch (err: any) {
     console.error('Error fetching products:', err);
     return NextResponse.json({
       products: [],
       categories: [],
+      error: err?.message || String(err),
       source: 'fallback'
     });
   }
