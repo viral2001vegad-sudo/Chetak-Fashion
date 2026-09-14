@@ -4,6 +4,8 @@ import { MOCK_PRODUCTS } from '@/lib/mockData';
 import { hashPassword } from '@/lib/auth/lock';
 import { Product } from '@/types';
 
+export const dynamic = 'force-dynamic';
+
 // Admin GET - returns all products including hidden, locked, and hashes if auth admin
 export async function GET() {
   try {

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { Category } from '@/types';
 
+export const dynamic = 'force-dynamic';
+
 // Admin GET - fetch all categories
 export async function GET() {
   try {

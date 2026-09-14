@@ -3,6 +3,8 @@ import { createAdminClient } from '@/lib/supabase/server';
 import { MOCK_PRODUCTS, MOCK_PAGE_VIEWS_COUNT, MOCK_ENQUIRIES_COUNT } from '@/lib/mockData';
 import { Product } from '@/types';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;

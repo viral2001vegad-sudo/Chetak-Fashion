@@ -4,6 +4,8 @@ import { MOCK_PRODUCTS, MOCK_CATEGORIES } from '@/lib/mockData';
 import { sanitizeProductForPublic } from '@/lib/auth/lock';
 import { Product } from '@/types';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
