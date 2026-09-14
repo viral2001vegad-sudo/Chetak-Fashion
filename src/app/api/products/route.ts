@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createAdminClient } from '@/lib/supabase/server';
+import { createAdminClient, getSupabaseUrl } from '@/lib/supabase/server';
 import { MOCK_PRODUCTS, MOCK_CATEGORIES } from '@/lib/mockData';
 import { sanitizeProductForPublic } from '@/lib/auth/lock';
 import { Product } from '@/types';
@@ -12,7 +12,7 @@ export async function GET() {
     const supabase = createAdminClient();
 
     // 1. Fetch categories
-    const { data: dbCategories } = await supabase
+    const { data: dbCategories, error: catError } = await supabase
       .from('categories')
       .select('*')
       .order('sort_order', { ascending: true });
@@ -33,6 +33,9 @@ export async function GET() {
       return NextResponse.json({
         products: [],
         categories: categoriesList,
+        prod_error: prodError || null,
+        cat_error: catError || null,
+        url_used: getSupabaseUrl(),
         source: 'supabase'
       });
     }
@@ -48,7 +51,8 @@ export async function GET() {
     return NextResponse.json({
       products: publicProducts,
       categories: categoriesList,
-      source: 'supabase'
+      source: 'supabase',
+      url_used: getSupabaseUrl()
     });
 
   } catch (err: any) {
@@ -57,6 +61,7 @@ export async function GET() {
       products: [],
       categories: [],
       error: err?.message || String(err),
+      url_used: getSupabaseUrl(),
       source: 'fallback'
     });
   }
