@@ -27,7 +27,8 @@ import {
   AlertCircle,
   Upload,
   ImageIcon,
-  Loader2
+  Loader2,
+  FolderTree
 } from 'lucide-react';
 
 export default function AdminDashboardPage() {
@@ -99,11 +100,24 @@ export default function AdminDashboardPage() {
     }
 
     fetchProducts();
+    fetchCategories();
   }, [router]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(''), 3500);
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch('/api/admin/categories');
+      const data = await res.json();
+      if (data.categories) {
+        setCategories(data.categories);
+      }
+    } catch (err) {
+      console.error('Fetch categories error:', err);
+    }
   };
 
   const fetchProducts = async () => {
@@ -328,6 +342,14 @@ export default function AdminDashboardPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            <Link
+              href="/admin/categories"
+              className="flex items-center gap-1.5 bg-brand-50 hover:bg-brand-100 text-brand-900 px-3 py-1.5 rounded-xl text-xs font-bold border border-brand-200 transition-colors"
+            >
+              <FolderTree className="w-3.5 h-3.5 text-brand-700" />
+              <span className="hidden sm:inline">Categories</span>
+            </Link>
+
             <Link
               href="/admin/insights"
               className="flex items-center gap-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 px-3 py-1.5 rounded-xl text-xs font-bold border border-amber-200 transition-colors"
