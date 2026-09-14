@@ -6,6 +6,8 @@ import { Product } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
+const isUUID = (str?: string) => str ? /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str) : false;
+
 // Admin GET - returns all products including hidden, locked, and hashes if auth admin
 export async function GET() {
   try {
@@ -16,9 +18,15 @@ export async function GET() {
     }
 
     const supabase = createAdminClient();
+
+    // Fetch categories for category name mapping
+    const { data: dbCats } = await supabase.from('categories').select('*');
+    const catMap: Record<string, string> = {};
+    (dbCats || []).forEach(c => { catMap[c.id] = c.name; });
+
     const { data, error } = await supabase
       .from('products')
-      .select('*, categories(name)')
+      .select('*')
       .order('sort_order', { ascending: true });
 
     if (error || !data) {
@@ -27,7 +35,7 @@ export async function GET() {
 
     const mapped = data.map(p => ({
       ...p,
-      category_name: p.categories?.name || 'General'
+      category_name: p.category_id ? (catMap[p.category_id] || 'General') : 'General'
     }));
 
     return NextResponse.json({ products: mapped, source: 'supabase' });
@@ -62,7 +70,7 @@ export async function POST(req: NextRequest) {
         description: description || null,
         price: price ? parseFloat(price) : null,
         price_visible: price_visible !== false,
-        category_id: category_id || null,
+        category_id: isUUID(category_id) ? category_id : null,
         images: images && images.length > 0 ? images : ['https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=800&auto=format&fit=crop&q=80'],
         in_stock: in_stock !== false,
         is_hidden: is_hidden === true,

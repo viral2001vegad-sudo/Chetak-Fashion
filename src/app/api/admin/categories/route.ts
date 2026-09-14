@@ -4,6 +4,8 @@ import { Category } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
+const isUUID = (str?: string) => str ? /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str) : false;
+
 // Admin GET - fetch all categories
 export async function GET() {
   try {
@@ -20,11 +22,13 @@ export async function GET() {
       .order('sort_order', { ascending: true });
 
     if (error || !data) {
+      console.error('Categories GET error:', error);
       return NextResponse.json({ categories: [] });
     }
 
     return NextResponse.json({ categories: data });
   } catch (err) {
+    console.error('Categories GET catch:', err);
     return NextResponse.json({ categories: [] });
   }
 }
@@ -41,19 +45,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: 'Category name is required' }, { status: 400 });
     }
 
-    const categoryObj: Category = {
-      id: id || `cat-${Date.now()}`,
-      name: categoryName,
-      sort_order: sort_order || 1,
-    };
-
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
     if (supabaseUrl && !supabaseUrl.includes('example.supabase.co')) {
       const supabase = createAdminClient();
 
-      if (id && !id.startsWith('cat-demo-') && !id.startsWith('cat-')) {
-        // Update existing category
+      if (id && isUUID(id)) {
+        // Update existing category in Supabase
         const { data, error } = await supabase
           .from('categories')
           .update({ name: categoryName, sort_order: sort_order || 0 })
@@ -64,8 +62,9 @@ export async function POST(req: NextRequest) {
         if (!error && data) {
           return NextResponse.json({ category: data, message: 'Category updated in Supabase' });
         }
+        if (error) console.error('Category update error:', error);
       } else {
-        // Insert new category
+        // Insert new category in Supabase (let Supabase generate UUID id)
         const { data, error } = await supabase
           .from('categories')
           .insert({ name: categoryName, sort_order: sort_order || 0 })
@@ -75,18 +74,24 @@ export async function POST(req: NextRequest) {
         if (!error && data) {
           return NextResponse.json({ category: data, message: 'Category added to Supabase' });
         }
+        if (error) console.error('Category insert error:', error);
       }
     }
 
-    // Auto-recovery fallback mode if database table doesn't exist yet
+    // Fallback category
+    const fallbackCategory: Category = {
+      id: isUUID(id) ? id : `cat-${Date.now()}`,
+      name: categoryName,
+      sort_order: sort_order || 1,
+    };
+
     return NextResponse.json({
-      category: categoryObj,
+      category: fallbackCategory,
       message: 'Category saved successfully'
     });
 
   } catch (err: any) {
     console.error('Category save error:', err);
-    // Always return safe 200 with category object so UI never freezes or fails
     const fallbackCategory: Category = {
       id: `cat-${Date.now()}`,
       name: categoryName,
@@ -110,7 +115,9 @@ export async function DELETE(req: NextRequest) {
 
     if (supabaseUrl && !supabaseUrl.includes('example.supabase.co')) {
       const supabase = createAdminClient();
-      await supabase.from('categories').delete().eq('id', id);
+      if (isUUID(id)) {
+        await supabase.from('categories').delete().eq('id', id);
+      }
     }
 
     return NextResponse.json({ success: true, message: 'Category deleted successfully' });
@@ -118,3 +125,4 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ success: true, message: 'Category deleted' });
   }
 }
+
