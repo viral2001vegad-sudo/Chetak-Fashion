@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 import { Banner } from '@/types';
+import { MOCK_BANNERS } from '@/lib/mockData';
 import { createAdminClient } from '@/lib/supabase/server';
 
 const BANNERS_FILE_PATH = path.join(process.cwd(), 'src', 'data', 'banners.json');
@@ -11,12 +12,12 @@ function getStoredBanners(): Banner[] {
     if (fs.existsSync(BANNERS_FILE_PATH)) {
       const fileData = fs.readFileSync(BANNERS_FILE_PATH, 'utf-8');
       const parsed = JSON.parse(fileData);
-      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
     }
   } catch (err) {
     console.error('Error reading banners.json file:', err);
   }
-  return [];
+  return MOCK_BANNERS;
 }
 
 function saveStoredBanners(banners: Banner[]) {
@@ -42,11 +43,12 @@ export async function GET() {
       }
     } catch (_) {}
 
-    // File storage fallback
-    const banners = getStoredBanners();
+    // File storage or mock fallback
+    const stored = getStoredBanners();
+    const banners = stored.length > 0 ? stored : MOCK_BANNERS;
     return NextResponse.json({ banners }, { status: 200 });
   } catch (err: any) {
-    return NextResponse.json({ banners: [] }, { status: 200 });
+    return NextResponse.json({ banners: MOCK_BANNERS }, { status: 200 });
   }
 }
 

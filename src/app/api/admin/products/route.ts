@@ -23,8 +23,12 @@ export async function GET() {
       .select('*')
       .order('sort_order', { ascending: true });
 
-    if (error || !data) {
-      return NextResponse.json({ products: [], source: 'supabase' });
+    if (error || !data || data.length === 0) {
+      const mappedMock = MOCK_PRODUCTS.map(p => ({
+        ...p,
+        category_name: p.category_id ? (catMap[p.category_id] || 'General') : 'General'
+      }));
+      return NextResponse.json({ products: mappedMock, source: 'fallback' });
     }
 
     const mapped = data.map(p => ({

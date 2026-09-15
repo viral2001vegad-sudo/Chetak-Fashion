@@ -27,7 +27,19 @@ export const MOCK_CATEGORIES: Category[] = [
   }
 ];
 
-export const MOCK_BANNERS: Banner[] = [];
+export const MOCK_BANNERS: Banner[] = [
+  {
+    id: 'banner-default-1',
+    title: 'Surat Direct Wholesale Manufacturer',
+    subtitle: 'Exclusive Dress Material & Suit Collection directly from manufacturer at factory rates.',
+    badge: 'SURAT DIRECT WHOLESALE',
+    image_url: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=1200&auto=format&fit=crop&q=80',
+    link_url: '',
+    is_active: true,
+    sort_order: 1,
+    created_at: '2026-09-15T10:00:00.000Z',
+  }
+];
 
 export const MOCK_PRODUCTS: Product[] = [
   {
