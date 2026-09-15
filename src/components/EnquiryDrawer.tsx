@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { EnquiryItem, Product, PublicProduct } from '@/types';
 import { useBusinessConfig } from '@/hooks/useBusinessConfig';
 import { WhatsAppIcon } from '@/components/icons/WhatsAppIcon';
-import { ShoppingBag, X, Trash2, ChevronRight, Check } from 'lucide-react';
+import { ShoppingBag, X, Trash2, ChevronRight, Check, CheckCircle2 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 interface EnquiryDrawerProps {
