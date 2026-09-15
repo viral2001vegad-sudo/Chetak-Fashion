@@ -3,8 +3,9 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
 import { EnquiryItem, Product, PublicProduct } from '@/types';
-import { BUSINESS_CONFIG } from '@/config/business';
-import { ShoppingBag, MessageCircle, X, Trash2, Send, CheckCircle2 } from 'lucide-react';
+import { useBusinessConfig } from '@/hooks/useBusinessConfig';
+import { WhatsAppIcon } from '@/components/icons/WhatsAppIcon';
+import { ShoppingBag, X, Trash2, ChevronRight, Check } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 interface EnquiryDrawerProps {
@@ -20,6 +21,7 @@ export const EnquiryDrawer: React.FC<EnquiryDrawerProps> = ({
   onUpdateQuantity,
   onClearBucket,
 }) => {
+  const { config: BUSINESS_CONFIG } = useBusinessConfig();
   const [isOpen, setIsOpen] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
@@ -202,7 +204,7 @@ export const EnquiryDrawer: React.FC<EnquiryDrawerProps> = ({
                   disabled={isSending}
                   className="w-full py-3.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-bold shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2"
                 >
-                  <MessageCircle className="w-5 h-5 fill-white" />
+                  <WhatsAppIcon className="w-5 h-5 fill-white shrink-0" />
                   <span>Send Wholesale Enquiry on WhatsApp</span>
                 </button>
 

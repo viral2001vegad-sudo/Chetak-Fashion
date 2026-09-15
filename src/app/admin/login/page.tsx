@@ -9,8 +9,8 @@ import { ShieldCheck, Lock, Mail, ArrowLeft, Loader2, AlertCircle } from 'lucide
 
 export default function AdminLoginPage() {
   const router = Router();
-  const [email, setEmail] = useState('admin@chetakfashion.com');
-  const [password, setPassword] = useState('admin123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -19,16 +19,28 @@ export default function AdminLoginPage() {
     setIsLoading(true);
     setErrorMsg('');
 
-    // Simulate auth check / demo login fallback
-    setTimeout(() => {
-      if (password.length >= 6 || password === 'admin123') {
-        localStorage.setItem('chetak_admin_token', 'demo-authenticated-token');
-        router.push('/admin');
-      } else {
-        setErrorMsg('Invalid admin credentials. (Demo login password: admin123)');
+    try {
+      const res = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setErrorMsg(data.error || 'Invalid admin credentials. Access denied!');
         setIsLoading(false);
+        return;
       }
-    }, 800);
+
+      // Save authenticated session token
+      localStorage.setItem('chetak_admin_token', data.token || 'authenticated-admin-session');
+      router.push('/admin');
+    } catch (err) {
+      setErrorMsg('Server connection error. Please try again.');
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -41,6 +53,9 @@ export default function AdminLoginPage() {
             <img
               src="/logo.svg"
               alt={BUSINESS_CONFIG.name}
+              width={64}
+              height={64}
+              style={{ width: '100%', height: '100%', maxWidth: '64px', maxHeight: '64px', objectFit: 'contain' }}
               className="w-full h-full object-contain"
             />
           </div>

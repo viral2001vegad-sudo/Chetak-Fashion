@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Product, Category } from '@/types';
-import { BUSINESS_CONFIG } from '@/config/business';
-import { MOCK_PRODUCTS, MOCK_CATEGORIES } from '@/lib/mockData';
+import { Product, Category, Banner } from '@/types';
+import { BusinessConfig } from '@/config/business';
+import { useBusinessConfig } from '@/hooks/useBusinessConfig';
+import { MOCK_PRODUCTS, MOCK_CATEGORIES, MOCK_BANNERS } from '@/lib/mockData';
 import {
   ShieldCheck,
   Plus,
@@ -16,7 +16,6 @@ import {
   EyeOff,
   CheckCircle,
   XCircle,
-  BarChart3,
   Search,
   Trash2,
   Edit3,
@@ -28,15 +27,35 @@ import {
   Upload,
   ImageIcon,
   Loader2,
-  FolderTree
+  FolderTree,
+  ExternalLink,
+  Package,
+  Settings,
+  Menu,
+  Phone,
+  MapPin,
+  MessageCircle,
+  Check,
+  Tag,
+  ArrowRight,
+  ChevronRight
 } from 'lucide-react';
 
 export default function AdminDashboardPage() {
   const router = useRouter();
+  const { config: businessConfig, updateConfig: updateBusinessConfig } = useBusinessConfig();
+
+  // Tab State
+  const [activeTab, setActiveTab] = useState<'products' | 'categories' | 'banners' | 'security' | 'settings'>('products');
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
+  // Data States
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [banners, setBanners] = useState<Banner[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('all');
 
   // Toast Notification
   const [toastMessage, setToastMessage] = useState('');
@@ -57,65 +76,68 @@ export default function AdminDashboardPage() {
 
   // File Upload State
   const [isUploading, setIsUploading] = useState(false);
+  const [isUploadingBanner, setIsUploadingBanner] = useState(false);
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, targetField: 'main' | 'preview') => {
-    const files = Array.from(e.target.files || []);
-    if (files.length === 0 || !editingProduct) return;
+  // Category Add/Edit State
+  const [newCatName, setNewCatName] = useState('');
+  const [isAddingCat, setIsAddingCat] = useState(false);
+  const [editingCatId, setEditingCatId] = useState<string | null>(null);
+  const [editingCatName, setEditingCatName] = useState('');
 
-    setIsUploading(true);
-    const uploadedUrls: string[] = [];
+  // Banners Modal & State
+  const [isBannerModalOpen, setIsBannerModalOpen] = useState(false);
+  const [newBannerTitle, setNewBannerTitle] = useState('Surat Direct Wholesale Manufacturer');
+  const [newBannerSubtitle, setNewBannerSubtitle] = useState('Exclusive Dress Material & Suit Collections at Factory Rates');
+  const [newBannerBadge, setNewBannerBadge] = useState('SURAT DIRECT WHOLESALE');
+  const [newBannerImageUrl, setNewBannerImageUrl] = useState('');
 
-    try {
-      for (const file of files) {
-        const formData = new FormData();
-        formData.append('file', file);
+  // Password Change State
+  const [currentAdminPassword, setCurrentAdminPassword] = useState('');
+  const [newAdminPassword, setNewAdminPassword] = useState('');
+  const [confirmAdminPassword, setConfirmAdminPassword] = useState('');
+  const [passwordChangeError, setPasswordChangeError] = useState('');
+  const [isSubmittingPassword, setIsSubmittingPassword] = useState(false);
 
-        const res = await fetch('/api/admin/upload', {
-          method: 'POST',
-          body: formData,
-        });
+  // Authentication Guard State
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-        const data = await res.json();
-        if (data.url) {
-          uploadedUrls.push(data.url);
-        }
-      }
-
-      if (uploadedUrls.length > 0) {
-        if (targetField === 'main') {
-          const currentImages = editingProduct.images || [];
-          setEditingProduct({ ...editingProduct, images: [...currentImages, ...uploadedUrls] });
-          showToast(`${uploadedUrls.length} image(s) uploaded to Supabase Storage!`);
-        } else {
-          setEditingProduct({ ...editingProduct, preview_image: uploadedUrls[0] });
-          showToast('Teaser image uploaded!');
-        }
-      } else {
-        showToast('Image upload failed');
-      }
-    } catch (err) {
-      showToast('Error uploading files');
-    } finally {
-      setIsUploading(false);
-      e.target.value = '';
-    }
-  };
+  // Dynamic Settings Form State
+  const [settingsForm, setSettingsForm] = useState<BusinessConfig>(businessConfig);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
 
   useEffect(() => {
-    // Check auth
+    // Sync settings form with loaded business config
+    setSettingsForm(businessConfig);
+  }, [businessConfig]);
+
+  useEffect(() => {
+    // Check auth token
     const token = localStorage.getItem('chetak_admin_token');
     if (!token) {
-      router.push('/admin/login');
+      setIsCheckingAuth(false);
+      setIsAuthenticated(false);
+      router.replace('/admin/login');
       return;
     }
 
+    setIsAuthenticated(true);
+    setIsCheckingAuth(false);
+
     fetchProducts();
     fetchCategories();
+    fetchBanners();
   }, [router]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(''), 3500);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('chetak_admin_token');
+    setIsAuthenticated(false);
+    router.replace('/admin/login');
   };
 
   const fetchCategories = async () => {
@@ -147,7 +169,254 @@ export default function AdminDashboardPage() {
     }
   };
 
-  // Instant Status Toggles
+  const fetchBanners = async () => {
+    try {
+      const res = await fetch(`/api/banners?t=${Date.now()}`);
+      const data = await res.json();
+      if (Array.isArray(data.banners)) {
+        setBanners(data.banners);
+      } else {
+        setBanners([]);
+      }
+    } catch (err) {
+      setBanners([]);
+    }
+  };
+
+  // --- Category Handlers ---
+  const handleAddCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const nameToAdd = newCatName.trim();
+    if (!nameToAdd) return;
+
+    setIsAddingCat(true);
+    try {
+      const res = await fetch('/api/admin/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: nameToAdd }),
+      });
+      const data = await res.json();
+      if (data.categories) {
+        setCategories(data.categories);
+        showToast(`Category "${nameToAdd}" created!`);
+        setNewCatName('');
+      }
+    } catch (err) {
+      showToast('Error adding category');
+    } finally {
+      setIsAddingCat(false);
+    }
+  };
+
+  const handleUpdateCategory = async (id: string) => {
+    if (!editingCatName.trim()) return;
+    try {
+      const res = await fetch('/api/admin/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, name: editingCatName.trim() }),
+      });
+      const data = await res.json();
+      if (data.categories) {
+        setCategories(data.categories);
+        showToast('Category updated!');
+        setEditingCatId(null);
+      }
+    } catch (err) {
+      showToast('Error updating category');
+    }
+  };
+
+  const handleDeleteCategory = async (id: string) => {
+    try {
+      const res = await fetch(`/api/admin/categories?id=${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.categories) {
+        setCategories(data.categories);
+        showToast('Category deleted!');
+      }
+    } catch (err) {
+      showToast('Error deleting category');
+    }
+  };
+
+  // --- Banner Handlers ---
+  const handleBannerFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingBanner(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/admin/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (data.url) {
+        setNewBannerImageUrl(data.url);
+        showToast('Banner image uploaded successfully!');
+      } else {
+        showToast('Failed to upload banner image');
+      }
+    } catch (err) {
+      showToast('Error uploading banner image');
+    } finally {
+      setIsUploadingBanner(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleAddBanner = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newBannerTitle.trim()) return;
+
+    try {
+      const res = await fetch('/api/banners', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: newBannerTitle,
+          subtitle: newBannerSubtitle,
+          badge: newBannerBadge,
+          image_url: newBannerImageUrl || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=1200&auto=format&fit=crop&q=80',
+        }),
+      });
+
+      const data = await res.json();
+      if (data.banners) {
+        setBanners(data.banners);
+      }
+      showToast('Banner slide created successfully!');
+      setNewBannerTitle('Surat Direct Wholesale Manufacturer');
+      setNewBannerSubtitle('Exclusive Dress Material & Suit Collections');
+      setNewBannerBadge('SURAT DIRECT WHOLESALE');
+      setNewBannerImageUrl('');
+      setIsBannerModalOpen(false);
+    } catch (err) {
+      showToast('Failed to save banner slide');
+    }
+  };
+
+  const handleDeleteBanner = async (id: string) => {
+    try {
+      const res = await fetch(`/api/banners?id=${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.banners) {
+        setBanners(data.banners);
+      }
+      showToast('Banner removed');
+    } catch (err) {
+      showToast('Failed to delete banner');
+    }
+  };
+
+  // --- Password Handlers ---
+  const handleChangeAdminPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordChangeError('');
+
+    if (newAdminPassword !== confirmAdminPassword) {
+      setPasswordChangeError('New passwords do not match.');
+      return;
+    }
+
+    if (newAdminPassword.length < 6) {
+      setPasswordChangeError('Password must be at least 6 characters long.');
+      return;
+    }
+
+    setIsSubmittingPassword(true);
+    try {
+      const res = await fetch('/api/admin/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currentPassword: currentAdminPassword,
+          newPassword: newAdminPassword,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setPasswordChangeError(data.error || 'Password update failed.');
+        setIsSubmittingPassword(false);
+        return;
+      }
+
+      showToast('Admin password updated successfully!');
+      setCurrentAdminPassword('');
+      setNewAdminPassword('');
+      setConfirmAdminPassword('');
+    } catch (err) {
+      setPasswordChangeError('Server error while changing password.');
+    } finally {
+      setIsSubmittingPassword(false);
+    }
+  };
+
+  // --- Product File Upload ---
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, targetField: 'main' | 'preview') => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0 || !editingProduct) return;
+
+    if (targetField === 'main') {
+      const currentImages = editingProduct.images || [];
+      if (currentImages.length >= 2) {
+        showToast('Maximum 2 images allowed per product!');
+        e.target.value = '';
+        return;
+      }
+    }
+
+    setIsUploading(true);
+    const uploadedUrls: string[] = [];
+
+    try {
+      const currentImages = editingProduct.images || [];
+      const remainingSlots = targetField === 'main' ? 2 - currentImages.length : 1;
+      const filesToUpload = files.slice(0, remainingSlots);
+
+      for (const file of filesToUpload) {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const res = await fetch('/api/admin/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        const data = await res.json();
+        if (data.url) {
+          uploadedUrls.push(data.url);
+        }
+      }
+
+      if (uploadedUrls.length > 0) {
+        if (targetField === 'main') {
+          const combined = [...currentImages, ...uploadedUrls].slice(0, 2);
+          setEditingProduct({ ...editingProduct, images: combined });
+          showToast(`${uploadedUrls.length} image(s) uploaded! (Max 2 images limit)`);
+        } else {
+          setEditingProduct({ ...editingProduct, preview_image: uploadedUrls[0] });
+          showToast('Teaser image uploaded!');
+        }
+      } else {
+        showToast('Image upload failed');
+      }
+    } catch (err) {
+      showToast('Error uploading files');
+    } finally {
+      setIsUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  // --- Product Toggles ---
   const handleToggleHide = async (product: Product) => {
     const updatedHidden = !product.is_hidden;
     try {
@@ -159,7 +428,7 @@ export default function AdminDashboardPage() {
       setProducts((prev) =>
         prev.map((p) => (p.id === product.id ? { ...p, is_hidden: updatedHidden } : p))
       );
-      showToast(updatedHidden ? `"${product.name}" is now HIDDEN from catalogue` : `"${product.name}" is now VISIBLE on catalogue`);
+      showToast(updatedHidden ? `"${product.name}" is now HIDDEN` : `"${product.name}" is now VISIBLE`);
     } catch (err) {
       showToast('Error updating status');
     }
@@ -176,7 +445,7 @@ export default function AdminDashboardPage() {
       setProducts((prev) =>
         prev.map((p) => (p.id === product.id ? { ...p, in_stock: updatedStock } : p))
       );
-      showToast(updatedStock ? `Marked "${product.name}" as IN STOCK` : `Marked "${product.name}" as OUT OF STOCK`);
+      showToast(updatedStock ? `Marked "${product.name}" IN STOCK` : `Marked "${product.name}" OUT OF STOCK`);
     } catch (err) {
       showToast('Error updating stock status');
     }
@@ -184,7 +453,6 @@ export default function AdminDashboardPage() {
 
   const handleToggleLockQuick = async (product: Product) => {
     if (product.is_locked) {
-      // Unlock item
       try {
         await fetch('/api/admin/products', {
           method: 'POST',
@@ -194,12 +462,11 @@ export default function AdminDashboardPage() {
         setProducts((prev) =>
           prev.map((p) => (p.id === product.id ? { ...p, is_locked: false, password_hash: null } : p))
         );
-        showToast(`Unlocked "${product.name}" - now public`);
+        showToast(`Unlocked "${product.name}"`);
       } catch (err) {
         showToast('Error unlocking item');
       }
     } else {
-      // Prompt for password
       setQuickLockProduct(product);
       setQuickPassword('chetak123');
     }
@@ -242,7 +509,6 @@ export default function AdminDashboardPage() {
     }
   };
 
-  // Open Form Modal for Create or Edit
   const handleOpenAddModal = () => {
     setEditingProduct({
       name: '',
@@ -290,636 +556,1138 @@ export default function AdminDashboardPage() {
     }
 
     try {
+      const sanitizedImages = (editingProduct.images || []).slice(0, 2);
+
       const res = await fetch('/api/admin/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...editingProduct,
-          password: formPassword,
+          images: sanitizedImages,
+          preview_image: sanitizedImages[0] || editingProduct.preview_image || '',
+          password: formPassword || undefined,
         }),
       });
 
       const data = await res.json();
-      if (!res.ok) {
-        setFormError(data.message || 'Save failed');
-        return;
+      if (data.products) {
+        setProducts(data.products);
       }
-
-      showToast(editingProduct.id ? 'Product updated successfully' : 'Product created successfully');
+      showToast(editingProduct.id ? 'Product updated successfully!' : 'New product created!');
       setIsModalOpen(false);
-      fetchProducts();
     } catch (err) {
-      setFormError('Network error while saving product');
+      setFormError('Error saving product');
     }
   };
 
-  // Stats calculation
-  const totalProducts = products.length;
-  const hiddenCount = products.filter((p) => p.is_hidden).length;
-  const lockedCount = products.filter((p) => p.is_locked).length;
-  const outOfStockCount = products.filter((p) => !p.in_stock).length;
+  // --- Dynamic Settings Form Handler ---
+  const handleSaveSettings = (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingSettings(true);
+    try {
+      updateBusinessConfig(settingsForm);
+      showToast('Store details and settings updated live!');
+    } catch (err) {
+      showToast('Failed to save settings');
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
 
-  const filteredList = products.filter(
-    (p) =>
+  // Filtered Products
+  const filteredProducts = products.filter((p) => {
+    const matchesQuery =
       p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (p.description && p.description.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+      p.description?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCat =
+      selectedCategoryFilter === 'all' || p.category_id === selectedCategoryFilter;
+    return matchesQuery && matchesCat;
+  });
+
+  const categoryMap = categories.reduce((acc, cat) => {
+    acc[cat.id] = cat.name;
+    return acc;
+  }, {} as Record<string, string>);
+
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen bg-bg-main flex items-center justify-center p-4">
+        <div className="flex items-center gap-2.5 text-brand-700 font-bold text-sm bg-white p-6 rounded-3xl border border-gray-100 shadow-md">
+          <Loader2 className="w-5 h-5 animate-spin text-brand-600" />
+          <span>Verifying Admin Access...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
-    <div className="min-h-screen bg-bg-main text-text-primary flex flex-col pb-20">
+    <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row text-gray-800">
       
-      {/* Toast Notification */}
+      {/* Toast Alert */}
       {toastMessage && (
-        <div className="fixed top-4 right-4 z-50 bg-gray-900 text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-2 text-xs font-semibold animate-slide-in border border-gray-700">
+        <div className="fixed top-5 right-5 z-50 bg-gray-900 text-white text-xs font-semibold px-4 py-3 rounded-2xl shadow-xl flex items-center gap-2 border border-gray-700 animate-bounce-short">
           <CheckCircle className="w-4 h-4 text-emerald-400" />
           <span>{toastMessage}</span>
         </div>
       )}
 
-      {/* Admin Top Header Bar */}
-      <header className="sticky top-0 z-30 bg-white border-b border-gray-200 shadow-sm px-4 py-3">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
+      {/* Top Mobile Bar */}
+      <div className="md:hidden bg-brand-700 text-white p-4 flex items-center justify-between shadow-md">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-white p-1 flex items-center justify-center overflow-hidden">
+            <img src="/logo.svg" alt="Chetak" width={32} height={32} style={{ maxWidth: '32px', maxHeight: '32px' }} />
+          </div>
+          <span className="font-serif font-bold text-lg tracking-tight">CHETAK ADMIN</span>
+        </div>
+        <button
+          onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+          className="p-2 bg-brand-800 hover:bg-brand-900 rounded-xl"
+        >
+          <Menu className="w-5 h-5 text-white" />
+        </button>
+      </div>
+
+      {/* Left Sidebar Navigation */}
+      <aside
+        className={`fixed md:sticky top-0 left-0 z-40 h-screen w-64 bg-white border-r border-gray-200 flex flex-col justify-between transition-transform duration-200 ease-in-out ${
+          isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+        }`}
+      >
+        {/* Brand Title */}
+        <div className="p-6 border-b border-gray-100">
           <div className="flex items-center gap-3">
-            <div className="relative w-9 h-9 rounded-xl bg-brand-50 border border-brand-200 flex items-center justify-center p-1 overflow-hidden">
-              <img src="/logo.svg" alt="" className="w-full h-full object-contain" />
+            <div className="w-11 h-11 rounded-2xl bg-white border border-brand-100 shadow-sm p-1.5 flex items-center justify-center shrink-0">
+              <img
+                src="/logo.svg"
+                alt="Chetak Fashion"
+                width={44}
+                height={44}
+                style={{ width: '100%', height: '100%', maxWidth: '44px', maxHeight: '44px', objectFit: 'contain' }}
+              />
             </div>
             <div>
-              <h1 className="font-serif text-lg font-bold text-gray-900 leading-none">
-                {BUSINESS_CONFIG.name} Admin Panel
-              </h1>
-              <span className="text-[10px] font-semibold text-brand-700">Mobile Wholesale Manager</span>
+              <h2 className="font-serif text-lg font-black text-brand-700 leading-none">
+                {businessConfig.name}
+              </h2>
+              <span className="inline-block bg-brand-50 text-brand-700 text-[10px] font-bold px-2 py-0.5 rounded-full mt-1 border border-brand-100">
+                SURAT ADMIN HQ
+              </span>
             </div>
           </div>
-
-          <div className="flex items-center gap-2">
-            <Link
-              href="/admin/categories"
-              className="flex items-center gap-1.5 bg-brand-50 hover:bg-brand-100 text-brand-900 px-3 py-1.5 rounded-xl text-xs font-bold border border-brand-200 transition-colors"
-            >
-              <FolderTree className="w-3.5 h-3.5 text-brand-700" />
-              <span className="hidden sm:inline">Categories</span>
-            </Link>
-
-            <Link
-              href="/admin/insights"
-              className="flex items-center gap-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 px-3 py-1.5 rounded-xl text-xs font-bold border border-amber-200 transition-colors"
-            >
-              <BarChart3 className="w-3.5 h-3.5 text-amber-600" />
-              <span className="hidden sm:inline">Insights</span>
-            </Link>
-
-            <button
-              onClick={() => {
-                localStorage.removeItem('chetak_admin_token');
-                router.push('/admin/login');
-              }}
-              className="text-gray-500 hover:text-red-600 p-2 rounded-xl hover:bg-gray-100"
-              title="Logout"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {/* Dashboard Body */}
-      <main className="max-w-7xl mx-auto px-4 py-6 space-y-6 w-full flex-1">
-        
-        {/* Summary Strip Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="bg-white p-3.5 rounded-2xl border border-gray-100 shadow-sm space-y-1">
-            <span className="text-[11px] font-medium text-gray-500">Total Products</span>
-            <p className="text-xl font-bold text-gray-900">{totalProducts}</p>
-          </div>
-
-          <div className="bg-amber-50/60 p-3.5 rounded-2xl border border-amber-100 shadow-sm space-y-1">
-            <span className="text-[11px] font-semibold text-amber-800 flex items-center gap-1">
-              <Lock className="w-3 h-3 text-amber-600" /> Locked Items
-            </span>
-            <p className="text-xl font-bold text-amber-950">{lockedCount}</p>
-          </div>
-
-          <div className="bg-gray-100 p-3.5 rounded-2xl border border-gray-200 shadow-sm space-y-1">
-            <span className="text-[11px] font-semibold text-gray-600 flex items-center gap-1">
-              <EyeOff className="w-3 h-3" /> Hidden Items
-            </span>
-            <p className="text-xl font-bold text-gray-800">{hiddenCount}</p>
-          </div>
-
-          <div className="bg-red-50/60 p-3.5 rounded-2xl border border-red-100 shadow-sm space-y-1">
-            <span className="text-[11px] font-semibold text-red-800">Out of Stock</span>
-            <p className="text-xl font-bold text-red-950">{outOfStockCount}</p>
-          </div>
         </div>
 
-        {/* Search & Actions Strip */}
-        <div className="flex items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-gray-100 shadow-sm">
-          <div className="relative flex-1">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search product inventory..."
-              className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:border-brand-500"
-            />
-          </div>
+        {/* Sidebar Menu Tabs */}
+        <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto">
+          {/* Products Tab */}
+          <button
+            onClick={() => { setActiveTab('products'); setIsMobileSidebarOpen(false); }}
+            className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs font-bold transition-all ${
+              activeTab === 'products'
+                ? 'bg-brand-600 text-white shadow-md shadow-brand-600/20'
+                : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <Package className="w-4 h-4" />
+              <span>Products Catalogue</span>
+            </div>
+            <span className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold ${
+              activeTab === 'products' ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
+            }`}>
+              {products.length}
+            </span>
+          </button>
+
+          {/* Categories Tab */}
+          <button
+            onClick={() => { setActiveTab('categories'); setIsMobileSidebarOpen(false); }}
+            className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs font-bold transition-all ${
+              activeTab === 'categories'
+                ? 'bg-brand-600 text-white shadow-md shadow-brand-600/20'
+                : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <FolderTree className="w-4 h-4" />
+              <span>Categories</span>
+            </div>
+            <span className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold ${
+              activeTab === 'categories' ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
+            }`}>
+              {categories.length}
+            </span>
+          </button>
+
+          {/* Banners Tab */}
+          <button
+            onClick={() => { setActiveTab('banners'); setIsMobileSidebarOpen(false); }}
+            className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs font-bold transition-all ${
+              activeTab === 'banners'
+                ? 'bg-brand-600 text-white shadow-md shadow-brand-600/20'
+                : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <ImageIcon className="w-4 h-4" />
+              <span>Banner Slides</span>
+            </div>
+            <span className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold ${
+              activeTab === 'banners' ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
+            }`}>
+              {banners.length}
+            </span>
+          </button>
+
+          {/* Security / Passwords Tab */}
+          <button
+            onClick={() => { setActiveTab('security'); setIsMobileSidebarOpen(false); }}
+            className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs font-bold transition-all ${
+              activeTab === 'security'
+                ? 'bg-brand-600 text-white shadow-md shadow-brand-600/20'
+                : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <ShieldCheck className="w-4 h-4" />
+              <span>Password & Security</span>
+            </div>
+          </button>
+
+          {/* Settings Tab */}
+          <button
+            onClick={() => { setActiveTab('settings'); setIsMobileSidebarOpen(false); }}
+            className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs font-bold transition-all ${
+              activeTab === 'settings'
+                ? 'bg-brand-600 text-white shadow-md shadow-brand-600/20'
+                : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <Settings className="w-4 h-4" />
+              <span>Store Settings</span>
+            </div>
+          </button>
+        </nav>
+
+        {/* Sidebar Footer Actions */}
+        <div className="p-4 border-t border-gray-100 space-y-2">
+          <Link
+            href="/"
+            target="_blank"
+            className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold transition-colors border border-emerald-200"
+          >
+            <span className="flex items-center gap-2">
+              <ExternalLink className="w-3.5 h-3.5 text-emerald-600" /> Public Storefront
+            </span>
+            <ChevronRight className="w-3.5 h-3.5 text-emerald-600" />
+          </Link>
 
           <button
-            onClick={handleOpenAddModal}
-            className="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md flex items-center gap-1.5 shrink-0"
+            onClick={handleLogout}
+            className="w-full flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-red-600 hover:bg-red-50 text-xs font-bold transition-colors"
           >
-            <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">Add Product</span>
+            <LogOut className="w-3.5 h-3.5" /> Sign Out
           </button>
         </div>
+      </aside>
 
-        {/* Product Cards Listing (Mobile-optimized cards, NOT cramped table) */}
-        <div className="space-y-3">
-          {isLoading ? (
-            <div className="text-center py-12 text-gray-400">Loading admin products...</div>
-          ) : filteredList.length === 0 ? (
-            <div className="bg-white p-8 rounded-2xl text-center text-gray-500 text-xs">
-              No products found matching query.
+      {/* Main Content Area */}
+      <main className="flex-1 p-4 sm:p-8 max-w-7xl mx-auto w-full">
+        
+        {/* Top Action Header Bar */}
+        <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 bg-white p-5 rounded-3xl border border-gray-200/80 shadow-sm">
+          <div>
+            <h1 className="text-2xl font-serif font-black text-gray-900 tracking-tight capitalize">
+              {activeTab === 'products' && 'Product Catalogue Management'}
+              {activeTab === 'categories' && 'Category Directory Management'}
+              {activeTab === 'banners' && 'Promotional Banner Slider Management'}
+              {activeTab === 'security' && 'Admin Security & Access Passwords'}
+              {activeTab === 'settings' && 'Live Business Details & Store Settings'}
+            </h1>
+            <p className="text-xs text-gray-500 font-medium mt-1">
+              {activeTab === 'products' && 'Add, lock, or update wholesale suit materials & stock visibility.'}
+              {activeTab === 'categories' && 'Organize catalogue categories for public store navigation.'}
+              {activeTab === 'banners' && 'Upload and schedule promotional banner images.'}
+              {activeTab === 'security' && 'Update master admin password and default security locks.'}
+              {activeTab === 'settings' && 'Manage phone numbers, WhatsApp, shop address, and GSTIN dynamically.'}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0">
+            {activeTab === 'products' && (
+              <button
+                onClick={handleOpenAddModal}
+                className="flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white px-4 py-2.5 rounded-2xl text-xs font-bold shadow-md hover:shadow-lg transition-all active:scale-95"
+              >
+                <Plus className="w-4 h-4" /> Add New Product
+              </button>
+            )}
+
+            {activeTab === 'banners' && (
+              <button
+                onClick={() => setIsBannerModalOpen(true)}
+                className="flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white px-4 py-2.5 rounded-2xl text-xs font-bold shadow-md hover:shadow-lg transition-all active:scale-95"
+              >
+                <Plus className="w-4 h-4" /> Add Banner Slide
+              </button>
+            )}
+          </div>
+        </header>
+
+        {/* --- TAB 1: PRODUCTS --- */}
+        {activeTab === 'products' && (
+          <div className="space-y-6">
+            {/* Quick Metrics */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-white p-4 rounded-2xl border border-gray-200/80 shadow-sm">
+                <span className="text-[11px] text-gray-500 font-bold uppercase tracking-wider block">Total Items</span>
+                <span className="text-2xl font-bold text-gray-900 mt-1 block">{products.length}</span>
+              </div>
+              <div className="bg-amber-50 p-4 rounded-2xl border border-amber-200/80 shadow-sm">
+                <span className="text-[11px] text-amber-800 font-bold uppercase tracking-wider block flex items-center gap-1">
+                  <Lock className="w-3 h-3 text-amber-600" /> Locked Access
+                </span>
+                <span className="text-2xl font-bold text-amber-900 mt-1 block">
+                  {products.filter(p => p.is_locked).length}
+                </span>
+              </div>
+              <div className="bg-blue-50 p-4 rounded-2xl border border-blue-200/80 shadow-sm">
+                <span className="text-[11px] text-blue-800 font-bold uppercase tracking-wider block flex items-center gap-1">
+                  <EyeOff className="w-3 h-3 text-blue-600" /> Hidden Items
+                </span>
+                <span className="text-2xl font-bold text-blue-900 mt-1 block">
+                  {products.filter(p => p.is_hidden).length}
+                </span>
+              </div>
+              <div className="bg-red-50 p-4 rounded-2xl border border-red-200/80 shadow-sm">
+                <span className="text-[11px] text-red-800 font-bold uppercase tracking-wider block flex items-center gap-1">
+                  <XCircle className="w-3 h-3 text-red-600" /> Out of Stock
+                </span>
+                <span className="text-2xl font-bold text-red-900 mt-1 block">
+                  {products.filter(p => !p.in_stock).length}
+                </span>
+              </div>
             </div>
-          ) : (
-            filteredList.map((prod) => {
-              const image = (prod.images && prod.images[0]) || prod.preview_image || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=800&auto=format&fit=crop&q=80';
-              
-              return (
-                <div
-                  key={prod.id}
-                  className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm space-y-3"
-                >
-                  <div className="flex items-start gap-3.5">
-                    {/* Image */}
-                    <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-gray-100 shrink-0 border border-gray-200">
-                      <Image src={image} alt={prod.name} fill className="object-cover" />
-                      {prod.is_locked && (
-                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                          <Lock className="w-4 h-4 text-yellow-400" />
+
+            {/* Search & Category Filter Bar */}
+            <div className="flex flex-col sm:flex-row gap-3 bg-white p-4 rounded-2xl border border-gray-200/80 shadow-sm">
+              <div className="relative flex-1">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search products by name or description..."
+                  className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none"
+                />
+              </div>
+              <select
+                value={selectedCategoryFilter}
+                onChange={(e) => setSelectedCategoryFilter(e.target.value)}
+                className="px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold text-gray-700 outline-none"
+              >
+                <option value="all">All Categories ({products.length})</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Products List / Cards */}
+            {isLoading ? (
+              <div className="text-center py-16 bg-white rounded-3xl border border-gray-200/80">
+                <Loader2 className="w-8 h-8 animate-spin text-brand-600 mx-auto" />
+                <p className="text-xs text-gray-500 font-semibold mt-2">Loading catalogue items...</p>
+              </div>
+            ) : filteredProducts.length === 0 ? (
+              <div className="text-center py-16 bg-white rounded-3xl border border-gray-200/80">
+                <Package className="w-10 h-10 text-gray-300 mx-auto" />
+                <p className="text-sm font-bold text-gray-700 mt-2">No products found</p>
+                <p className="text-xs text-gray-500 mt-1">Try adjusting search or category filter.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {filteredProducts.map((product) => (
+                  <div
+                    key={product.id}
+                    className={`bg-white rounded-3xl border overflow-hidden transition-all shadow-sm hover:shadow-md flex flex-col justify-between ${
+                      product.is_hidden ? 'border-gray-200 opacity-60' : 'border-gray-200/80'
+                    }`}
+                  >
+                    <div>
+                      {/* Product Image & Badges */}
+                      <div className="relative aspect-[4/3] bg-gray-100 overflow-hidden">
+                        <img
+                          src={product.images?.[0] || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=800'}
+                          alt={product.name}
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
+                          <span className="bg-black/70 backdrop-blur-md text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                            {(product.category_id && categoryMap[product.category_id]) || 'General'}
+                          </span>
+                          {product.is_locked && (
+                            <span className="bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                              <Lock className="w-3 h-3" /> Password Protected
+                            </span>
+                          )}
                         </div>
-                      )}
+                      </div>
+
+                      {/* Info */}
+                      <div className="p-4 space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <h3 className="font-bold text-sm text-gray-900 line-clamp-1">{product.name}</h3>
+                          <span className="text-sm font-extrabold text-brand-700 shrink-0">
+                            {product.price ? `₹${product.price}` : 'Enquire'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-500 line-clamp-2">{product.description}</p>
+                      </div>
                     </div>
 
-                    {/* Details */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
-                          {prod.category_name || 'Dress Material'}
-                        </span>
-                        {prod.is_featured && (
-                          <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded">
-                            Featured
-                          </span>
+                    {/* Quick Toggles & Action Bar */}
+                    <div className="p-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1">
+                        {/* Visibility Toggle */}
+                        <button
+                          onClick={() => handleToggleHide(product)}
+                          title={product.is_hidden ? 'Make Visible' : 'Hide from Public'}
+                          className={`p-2 rounded-xl text-xs font-semibold flex items-center gap-1 transition-colors ${
+                            product.is_hidden
+                              ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                              : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
+                          }`}
+                        >
+                          {product.is_hidden ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5 text-emerald-600" />}
+                        </button>
+
+                        {/* In Stock Toggle */}
+                        <button
+                          onClick={() => handleToggleStock(product)}
+                          title={product.in_stock ? 'Mark Out of Stock' : 'Mark In Stock'}
+                          className={`p-2 rounded-xl text-xs font-semibold flex items-center gap-1 transition-colors ${
+                            product.in_stock
+                              ? 'bg-blue-100 text-blue-800 hover:bg-blue-200'
+                              : 'bg-red-100 text-red-800 hover:bg-red-200'
+                          }`}
+                        >
+                          {product.in_stock ? <CheckCircle className="w-3.5 h-3.5 text-blue-600" /> : <XCircle className="w-3.5 h-3.5 text-red-600" />}
+                        </button>
+
+                        {/* Lock Toggle */}
+                        <button
+                          onClick={() => handleToggleLockQuick(product)}
+                          title={product.is_locked ? 'Remove Password Lock' : 'Add Password Protection'}
+                          className={`p-2 rounded-xl text-xs font-semibold flex items-center gap-1 transition-colors ${
+                            product.is_locked
+                              ? 'bg-amber-100 text-amber-800 hover:bg-amber-200'
+                              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                          }`}
+                        >
+                          {product.is_locked ? <Lock className="w-3.5 h-3.5 text-amber-600" /> : <Unlock className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleOpenEditModal(product)}
+                          className="p-2 bg-white hover:bg-gray-100 text-gray-700 rounded-xl border border-gray-200"
+                          title="Edit Product"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => setDeleteTargetId(product.id)}
+                          className="p-2 bg-white hover:bg-red-50 text-red-600 rounded-xl border border-gray-200"
+                          title="Delete Product"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* --- TAB 2: CATEGORIES --- */}
+        {activeTab === 'categories' && (
+          <div className="space-y-6">
+            {/* Add Category Form */}
+            <div className="bg-white p-5 rounded-3xl border border-gray-200/80 shadow-sm">
+              <h3 className="text-sm font-bold text-gray-900 mb-3">Create New Catalogue Category</h3>
+              <form onSubmit={handleAddCategory} className="flex gap-3">
+                <input
+                  type="text"
+                  value={newCatName}
+                  onChange={(e) => setNewCatName(e.target.value)}
+                  placeholder="Category Name (e.g. Silk Cotton Suits, Printed Kurtis...)"
+                  className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none"
+                  required
+                />
+                <button
+                  type="submit"
+                  disabled={isAddingCat}
+                  className="bg-brand-600 hover:bg-brand-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 shrink-0"
+                >
+                  {isAddingCat ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                  Add Category
+                </button>
+              </form>
+            </div>
+
+            {/* Category Directory List */}
+            <div className="bg-white rounded-3xl border border-gray-200/80 shadow-sm overflow-hidden">
+              <div className="p-4 bg-gray-50 border-b border-gray-200 text-xs font-bold text-gray-600 grid grid-cols-12 gap-4">
+                <span className="col-span-6">Category Name</span>
+                <span className="col-span-3 text-center">Items Count</span>
+                <span className="col-span-3 text-right">Actions</span>
+              </div>
+
+              <div className="divide-y divide-gray-100">
+                {categories.map((cat) => {
+                  const count = products.filter((p) => p.category_id === cat.id).length;
+                  const isEditing = editingCatId === cat.id;
+
+                  return (
+                    <div key={cat.id} className="p-4 grid grid-cols-12 gap-4 items-center text-xs font-semibold">
+                      <div className="col-span-6 flex items-center gap-2">
+                        <FolderTree className="w-4 h-4 text-brand-600 shrink-0" />
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            value={editingCatName}
+                            onChange={(e) => setEditingCatName(e.target.value)}
+                            className="px-3 py-1 bg-white border border-brand-500 rounded-lg text-xs font-medium outline-none"
+                          />
+                        ) : (
+                          <span className="text-gray-900 font-bold">{cat.name}</span>
                         )}
                       </div>
 
-                      <h3 className="font-semibold text-sm text-gray-900 line-clamp-1 mt-1">
-                        {prod.name}
-                      </h3>
+                      <div className="col-span-3 text-center">
+                        <span className="bg-gray-100 text-gray-700 px-2.5 py-1 rounded-full text-[11px] font-bold">
+                          {count} Products
+                        </span>
+                      </div>
 
-                      <p className="text-xs font-bold text-brand-700 mt-0.5">
-                        {prod.price ? `₹${prod.price.toLocaleString('en-IN')}` : 'Price Hidden/Enquiry'}
-                      </p>
+                      <div className="col-span-3 text-right flex items-center justify-end gap-2">
+                        {isEditing ? (
+                          <>
+                            <button
+                              onClick={() => handleUpdateCategory(cat.id)}
+                              className="p-1.5 bg-emerald-100 text-emerald-800 rounded-lg hover:bg-emerald-200"
+                            >
+                              <Save className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => setEditingCatId(null)}
+                              className="p-1.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => { setEditingCatId(cat.id); setEditingCatName(cat.name); }}
+                              className="p-1.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteCategory(cat.id)}
+                              className="p-1.5 bg-red-100 text-red-700 rounded-lg hover:bg-red-200"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
-
-                    {/* Quick Edit/Delete */}
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => handleOpenEditModal(prod)}
-                        className="p-2 text-gray-500 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors"
-                        title="Edit Product"
-                      >
-                        <Edit3 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => setDeleteTargetId(prod.id)}
-                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Delete Product"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* QUICK STATUS TOGGLE BAR (Instant single-tap toggles) */}
-                  <div className="pt-2.5 border-t border-gray-100 grid grid-cols-3 gap-2 text-center text-[11px] font-semibold">
-                    
-                    {/* Hide / Show Toggle */}
-                    <button
-                      onClick={() => handleToggleHide(prod)}
-                      className={`py-1.5 px-2 rounded-xl border flex items-center justify-center gap-1 transition-all ${
-                        prod.is_hidden
-                          ? 'bg-gray-100 text-gray-600 border-gray-300'
-                          : 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                      }`}
-                    >
-                      {prod.is_hidden ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-                      <span>{prod.is_hidden ? 'Hidden' : 'Visible'}</span>
-                    </button>
-
-                    {/* Stock Toggle */}
-                    <button
-                      onClick={() => handleToggleStock(prod)}
-                      className={`py-1.5 px-2 rounded-xl border flex items-center justify-center gap-1 transition-all ${
-                        prod.in_stock
-                          ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                          : 'bg-red-50 text-red-800 border-red-200'
-                      }`}
-                    >
-                      {prod.in_stock ? <CheckCircle className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
-                      <span>{prod.in_stock ? 'In Stock' : 'Out Stock'}</span>
-                    </button>
-
-                    {/* Lock / Unlock Toggle */}
-                    <button
-                      onClick={() => handleToggleLockQuick(prod)}
-                      className={`py-1.5 px-2 rounded-xl border flex items-center justify-center gap-1 transition-all ${
-                        prod.is_locked
-                          ? 'bg-amber-100 text-amber-900 border-amber-300 font-bold'
-                          : 'bg-gray-50 text-gray-600 border-gray-200'
-                      }`}
-                    >
-                      {prod.is_locked ? <Lock className="w-3 h-3 text-amber-700" /> : <Unlock className="w-3 h-3" />}
-                      <span>{prod.is_locked ? 'Locked' : 'Open'}</span>
-                    </button>
-
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-
-      </main>
-
-      {/* Floating Mobile Add Product Button in Thumb Zone */}
-      <button
-        onClick={handleOpenAddModal}
-        className="fixed bottom-6 right-6 z-40 bg-brand-600 hover:bg-brand-700 text-white p-4 rounded-full shadow-2xl flex items-center justify-center border-2 border-white/20 hover:scale-105 active:scale-95 transition-all"
-        title="Add New Product"
-      >
-        <Plus className="w-6 h-6" />
-      </button>
-
-      {/* QUICK LOCK PASSWORD PROMPT DIALOG */}
-      {quickLockProduct && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 max-w-sm w-full space-y-4 shadow-modal">
-            <h3 className="font-serif font-bold text-lg text-gray-900 flex items-center gap-2">
-              <Lock className="w-5 h-5 text-amber-600" /> Lock Product Access
-            </h3>
-            <p className="text-xs text-gray-600">
-              Set a password for <span className="font-bold">{quickLockProduct.name}</span>. Only customers with this password can view prices & photos.
-            </p>
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Set Access Password</label>
-              <input
-                type="text"
-                value={quickPassword}
-                onChange={(e) => setQuickPassword(e.target.value)}
-                placeholder="e.g. chetak123"
-                className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm font-semibold outline-none focus:border-brand-500"
-              />
-            </div>
-            <div className="flex gap-2 pt-2">
-              <button
-                onClick={() => setQuickLockProduct(null)}
-                className="flex-1 py-2 text-xs font-semibold border border-gray-200 rounded-xl hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleApplyQuickLock}
-                className="flex-1 py-2 text-xs font-bold bg-amber-600 text-white rounded-xl hover:bg-amber-700 shadow"
-              >
-                Lock Item Now
-              </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* FULL ADD/EDIT PRODUCT MODAL */}
+        {/* --- TAB 3: BANNERS --- */}
+        {activeTab === 'banners' && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {banners.map((banner) => (
+                <div key={banner.id} className="bg-white rounded-3xl border border-gray-200/80 shadow-sm overflow-hidden flex flex-col justify-between">
+                  <div>
+                    <div className="relative aspect-[21/9] bg-gray-900 overflow-hidden">
+                      <img src={banner.image_url || ''} alt={banner.title} className="w-full h-full object-cover opacity-80" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent p-4 flex flex-col justify-end">
+                        <span className="bg-brand-600 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-md w-max mb-1">
+                          {banner.badge}
+                        </span>
+                        <h4 className="font-serif font-bold text-white text-base leading-tight">{banner.title}</h4>
+                        <p className="text-[11px] text-gray-300 line-clamp-1">{banner.subtitle}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
+                    <span className="text-[11px] text-emerald-700 font-bold bg-emerald-100 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                      <CheckCircle className="w-3 h-3" /> Active Slide
+                    </span>
+                    <button
+                      onClick={() => handleDeleteBanner(banner.id)}
+                      className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg text-xs font-semibold flex items-center gap-1"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" /> Delete Slide
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* --- TAB 4: PASSWORD & SECURITY --- */}
+        {activeTab === 'security' && (
+          <div className="max-w-2xl bg-white p-6 sm:p-8 rounded-3xl border border-gray-200/80 shadow-sm space-y-6">
+            <div className="flex items-center gap-3 border-b border-gray-100 pb-4">
+              <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center shrink-0">
+                <ShieldCheck className="w-5 h-5 text-amber-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-base text-gray-900">Admin Master Password</h3>
+                <p className="text-xs text-gray-500">Update credentials for logging into the admin portal.</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleChangeAdminPassword} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Current Password</label>
+                <input
+                  type="password"
+                  value={currentAdminPassword}
+                  onChange={(e) => setCurrentAdminPassword(e.target.value)}
+                  placeholder="Enter current password"
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">New Admin Password</label>
+                <input
+                  type="password"
+                  value={newAdminPassword}
+                  onChange={(e) => setNewAdminPassword(e.target.value)}
+                  placeholder="At least 6 characters"
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Confirm New Password</label>
+                <input
+                  type="password"
+                  value={confirmAdminPassword}
+                  onChange={(e) => setConfirmAdminPassword(e.target.value)}
+                  placeholder="Confirm new password"
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none"
+                  required
+                />
+              </div>
+
+              {passwordChangeError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                  <span>{passwordChangeError}</span>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={isSubmittingPassword}
+                className="bg-brand-600 hover:bg-brand-700 text-white px-6 py-3 rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2"
+              >
+                {isSubmittingPassword ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                Update Admin Password
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* --- TAB 5: SETTINGS (Dynamic Business Details) --- */}
+        {activeTab === 'settings' && (
+          <div className="max-w-3xl bg-white p-6 sm:p-8 rounded-3xl border border-gray-200/80 shadow-sm space-y-6">
+            <div className="flex items-center gap-3 border-b border-gray-100 pb-4">
+              <div className="w-10 h-10 rounded-2xl bg-brand-50 border border-brand-200 flex items-center justify-center shrink-0">
+                <Settings className="w-5 h-5 text-brand-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-base text-gray-900">Manage Live Store Details</h3>
+                <p className="text-xs text-gray-500">Changes here dynamically reflect on Header, Footer, WhatsApp & Enquiries immediately.</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleSaveSettings} className="space-y-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Store / Business Name</label>
+                  <input
+                    type="text"
+                    value={settingsForm.name}
+                    onChange={(e) => setSettingsForm({ ...settingsForm, name: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Contact Person Name</label>
+                  <input
+                    type="text"
+                    value={settingsForm.contactPerson}
+                    onChange={(e) => setSettingsForm({ ...settingsForm, contactPerson: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1 flex items-center gap-1">
+                    <Phone className="w-3.5 h-3.5 text-brand-600" /> Primary Phone Number
+                  </label>
+                  <input
+                    type="text"
+                    value={settingsForm.phone}
+                    onChange={(e) => setSettingsForm({ ...settingsForm, phone: e.target.value })}
+                    placeholder="+91 9724660535"
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1 flex items-center gap-1">
+                    <MessageCircle className="w-3.5 h-3.5 text-emerald-600" /> WhatsApp Number (Digit format e.g. 919724660535)
+                  </label>
+                  <input
+                    type="text"
+                    value={settingsForm.whatsapp}
+                    onChange={(e) => setSettingsForm({ ...settingsForm, whatsapp: e.target.value })}
+                    placeholder="919724660535"
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1 flex items-center gap-1">
+                  <MapPin className="w-3.5 h-3.5 text-brand-600" /> Shop / Market Address
+                </label>
+                <textarea
+                  rows={3}
+                  value={settingsForm.address}
+                  onChange={(e) => setSettingsForm({ ...settingsForm, address: e.target.value })}
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">GSTIN Number</label>
+                  <input
+                    type="text"
+                    value={settingsForm.gstin}
+                    onChange={(e) => setSettingsForm({ ...settingsForm, gstin: e.target.value })}
+                    placeholder="24FLAPS3668L1ZK"
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Store Tagline</label>
+                  <input
+                    type="text"
+                    value={settingsForm.tagline}
+                    onChange={(e) => setSettingsForm({ ...settingsForm, tagline: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Instagram Link</label>
+                  <input
+                    type="url"
+                    value={settingsForm.instagram}
+                    onChange={(e) => setSettingsForm({ ...settingsForm, instagram: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Google Maps URL</label>
+                  <input
+                    type="url"
+                    value={settingsForm.googleMapsUrl}
+                    onChange={(e) => setSettingsForm({ ...settingsForm, googleMapsUrl: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
+                <span className="text-[11px] text-gray-500 font-medium">Auto-synced to public website headers & footers.</span>
+                <button
+                  type="submit"
+                  disabled={isSavingSettings}
+                  className="bg-brand-600 hover:bg-brand-700 text-white px-6 py-3 rounded-2xl text-xs font-bold transition-all shadow-md flex items-center gap-2"
+                >
+                  {isSavingSettings ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  Save Store Details
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+      </main>
+
+      {/* --- MODAL: Add / Edit Product --- */}
       {isModalOpen && editingProduct && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl shadow-modal w-full max-w-lg overflow-hidden border border-gray-100 my-auto">
-            
-            <div className="bg-brand-700 p-4 text-white flex items-center justify-between">
-              <h3 className="font-serif font-bold text-base">
-                {editingProduct.id ? 'Edit Product Details' : 'Add New Dress Material'}
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 space-y-6 max-h-[90vh] overflow-y-auto my-8 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+              <h3 className="font-serif font-bold text-xl text-gray-900">
+                {editingProduct.id ? 'Edit Product Item' : 'Add New Dress Material'}
               </h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-white/80 hover:text-white">
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="p-1 text-gray-400 hover:text-gray-600 rounded-lg"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveProductForm} className="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
-              
+            <form onSubmit={handleSaveProductForm} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Product Name *</label>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Product Title / Design Name *</label>
                 <input
                   type="text"
                   value={editingProduct.name || ''}
                   onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value })}
+                  placeholder="e.g. GHOOMAR Vol 07 Rayon Cotton Suit Material"
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none"
                   required
-                  placeholder="e.g. Royal Chanderi Silk Dress Material"
-                  className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm outline-none focus:border-brand-500 font-medium"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">Category</label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Category</label>
                   <select
-                    value={editingProduct.category_id || 'cat-1'}
+                    value={editingProduct.category_id || categories[0]?.id || 'cat-1'}
                     onChange={(e) => setEditingProduct({ ...editingProduct, category_id: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs outline-none focus:border-brand-500 font-medium"
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold outline-none"
                   >
-                    {categories.length > 0 ? (
-                      categories.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))
-                    ) : (
-                      MOCK_CATEGORIES.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))
-                    )}
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">Wholesale Price (₹)</label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Wholesale Price (₹)</label>
                   <input
                     type="number"
                     value={editingProduct.price || ''}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, price: parseFloat(e.target.value) || undefined })}
-                    placeholder="e.g. 2450"
-                    className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm outline-none focus:border-brand-500 font-medium"
+                    onChange={(e) =>
+                      setEditingProduct({
+                        ...editingProduct,
+                        price: e.target.value ? Number(e.target.value) : undefined,
+                      })
+                    }
+                    placeholder="e.g. 535"
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Description & Fabric Notes</label>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Fabric & Design Details</label>
                 <textarea
                   rows={3}
                   value={editingProduct.description || ''}
                   onChange={(e) => setEditingProduct({ ...editingProduct, description: e.target.value })}
-                  placeholder="Unstitched suit material, embroidery details, dupatta specifications..."
-                  className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-xs outline-none focus:border-brand-500 font-medium"
+                  placeholder="Fabric type, dupatta material, work details, cut length..."
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none"
                 />
               </div>
 
-              {/* Image Upload to Supabase Storage */}
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold text-gray-700">
-                  Product Images ({editingProduct.images?.length || 0} Photos)
-                </label>
-                
-                <div className="flex items-center gap-2">
-                  <label className="flex-1 border-2 border-dashed border-gray-300 hover:border-brand-500 rounded-xl p-3 text-center cursor-pointer bg-gray-50 hover:bg-white transition-colors flex items-center justify-center gap-2">
-                    {isUploading ? (
-                      <Loader2 className="w-4 h-4 animate-spin text-brand-600" />
-                    ) : (
-                      <Upload className="w-4 h-4 text-brand-600" />
-                    )}
-                    <span className="text-xs font-bold text-gray-700">
-                      {isUploading ? 'Uploading to Supabase...' : 'Choose Photos (Select Multiple from Phone/PC)'}
-                    </span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={(e) => handleFileUpload(e, 'main')}
-                      disabled={isUploading}
-                      className="hidden"
-                    />
-                  </label>
+              {/* Images Upload */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-gray-700">Product Images (Maximum 2 Images)</label>
+                  <span className={`text-[11px] font-bold ${ (editingProduct.images || []).length >= 2 ? 'text-amber-600' : 'text-gray-500' }`}>
+                    {(editingProduct.images || []).length}/2 Images
+                  </span>
                 </div>
-
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    id="new-image-url-input"
-                    placeholder="Paste external image URL and press Enter"
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-xl text-xs outline-none focus:border-brand-500 font-medium"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        const val = (e.target as HTMLInputElement).value.trim();
-                        if (val) {
-                          setEditingProduct({
-                            ...editingProduct,
-                            images: [...(editingProduct.images || []), val],
-                          });
-                          (e.target as HTMLInputElement).value = '';
-                        }
-                      }
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const input = document.getElementById('new-image-url-input') as HTMLInputElement;
-                      if (input && input.value.trim()) {
-                        setEditingProduct({
-                          ...editingProduct,
-                          images: [...(editingProduct.images || []), input.value.trim()],
-                        });
-                        input.value = '';
-                      }
-                    }}
-                    className="bg-gray-800 text-white px-3 py-2 rounded-xl text-xs font-bold shrink-0 hover:bg-gray-900"
-                  >
-                    Add URL
-                  </button>
-                </div>
-
-                {/* Uploaded Thumbnail Preview Strip */}
-                {editingProduct.images && editingProduct.images.length > 0 && (
-                  <div className="space-y-1 pt-1">
-                    <span className="text-[11px] font-semibold text-gray-500">
-                      Uploaded Photos ({editingProduct.images.length}) - First photo is main cover:
-                    </span>
-                    <div className="flex gap-2 overflow-x-auto pb-1">
-                      {editingProduct.images.map((img, idx) => (
-                        <div key={idx} className="relative w-20 h-20 rounded-xl overflow-hidden border-2 border-gray-200 shrink-0 group">
-                          <Image src={img} alt="" fill className="object-cover" />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const updated = editingProduct.images?.filter((_, i) => i !== idx);
-                              setEditingProduct({ ...editingProduct, images: updated });
-                            }}
-                            className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 shadow-md hover:bg-red-700 transition-colors z-10"
-                            title="Remove Photo"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                          {idx === 0 && (
-                            <span className="absolute bottom-1 left-1 bg-brand-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow">
-                              Cover
-                            </span>
-                          )}
-                        </div>
-                      ))}
+                <div className="flex items-center gap-3">
+                  {(editingProduct.images || []).length < 2 ? (
+                    <label className="cursor-pointer bg-brand-50 hover:bg-brand-100 text-brand-700 px-4 py-2.5 rounded-xl border border-brand-200 text-xs font-bold flex items-center gap-2 transition-all">
+                      {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                      Upload Image Files (Max 2)
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={(e) => handleFileUpload(e, 'main')}
+                        className="hidden"
+                      />
+                    </label>
+                  ) : (
+                    <div className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2 rounded-xl">
+                      ⚠️ Limit reached: Maximum 2 images per product. Remove an image to upload another.
                     </div>
+                  )}
+                </div>
+
+                {editingProduct.images && editingProduct.images.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {editingProduct.images.map((img, idx) => (
+                      <div key={idx} className="relative w-16 h-16 rounded-xl overflow-hidden border border-gray-200 group">
+                        <img src={img} alt="Thumb" className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updated = editingProduct.images?.filter((_, i) => i !== idx);
+                            setEditingProduct({ ...editingProduct, images: updated });
+                          }}
+                          className="absolute top-1 right-1 bg-red-600 text-white p-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
 
-              {/* LOCK CONTROLS SECTION */}
-              <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Lock className="w-4 h-4 text-amber-700" />
-                    <span className="text-xs font-bold text-amber-950">Lock this product with password</span>
-                  </div>
+              {/* Password Lock Section */}
+              <div className="p-4 bg-amber-50 rounded-2xl border border-amber-200 space-y-3">
+                <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={!!editingProduct.is_locked}
+                    checked={editingProduct.is_locked || false}
                     onChange={(e) => setEditingProduct({ ...editingProduct, is_locked: e.target.checked })}
-                    className="w-4 h-4 accent-amber-600 rounded cursor-pointer"
+                    className="w-4 h-4 text-brand-600 rounded"
                   />
-                </div>
+                  <span className="text-xs font-bold text-amber-900 flex items-center gap-1">
+                    <Lock className="w-3.5 h-3.5 text-amber-600" /> Password Lock Protection (Boutique Suits)
+                  </span>
+                </label>
 
                 {editingProduct.is_locked && (
-                  <div className="space-y-3 pt-2 border-t border-amber-200/60 animate-fade-in">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                     <div>
-                      <label className="block text-xs font-semibold text-amber-900 mb-1">
-                        Set Access Password (hashed with bcrypt)
-                      </label>
+                      <label className="block text-[11px] font-bold text-amber-900 mb-1">Set Access Password</label>
                       <input
                         type="password"
                         value={formPassword}
                         onChange={(e) => setFormPassword(e.target.value)}
-                        placeholder={editingProduct.id ? "Leave blank to keep existing password" : "e.g. chetak123"}
-                        className="w-full px-3 py-2 border border-amber-300 rounded-xl text-xs outline-none focus:border-amber-600"
+                        placeholder="e.g. chetak123"
+                        className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl text-xs outline-none"
                       />
                     </div>
-
-                    {formPassword && (
-                      <div>
-                        <label className="block text-xs font-semibold text-amber-900 mb-1">Confirm Password</label>
-                        <input
-                          type="password"
-                          value={formConfirmPassword}
-                          onChange={(e) => setFormConfirmPassword(e.target.value)}
-                          placeholder="Re-enter password"
-                          className="w-full px-3 py-2 border border-amber-300 rounded-xl text-xs outline-none focus:border-amber-600"
-                        />
-                      </div>
-                    )}
-
                     <div>
-                      <label className="block text-xs font-semibold text-amber-900 mb-1">
-                        Teaser / Preview Image (Upload to Supabase Storage)
-                      </label>
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <label className="flex-1 border border-amber-300 bg-white hover:bg-amber-100/50 rounded-xl p-2 text-center cursor-pointer transition-colors flex items-center justify-center gap-2">
-                          <Upload className="w-3.5 h-3.5 text-amber-700" />
-                          <span className="text-xs font-semibold text-amber-900">
-                            Upload Teaser Photo
-                          </span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => handleFileUpload(e, 'preview')}
-                            className="hidden"
-                          />
-                        </label>
-                      </div>
+                      <label className="block text-[11px] font-bold text-amber-900 mb-1">Confirm Password</label>
                       <input
-                        type="text"
-                        value={editingProduct.preview_image || ''}
-                        onChange={(e) => setEditingProduct({ ...editingProduct, preview_image: e.target.value })}
-                        placeholder="Non-sensitive teaser photo URL"
-                        className="w-full px-3 py-2 border border-amber-300 rounded-xl text-xs outline-none focus:border-amber-600"
+                        type="password"
+                        value={formConfirmPassword}
+                        onChange={(e) => setFormConfirmPassword(e.target.value)}
+                        placeholder="Confirm password"
+                        className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl text-xs outline-none"
                       />
                     </div>
                   </div>
                 )}
               </div>
 
-              {/* STATUS TOGGLES */}
-              <div className="grid grid-cols-2 gap-3 pt-1">
-                <label className="flex items-center gap-2 p-2.5 bg-gray-50 border rounded-xl cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={!editingProduct.in_stock}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, in_stock: !e.target.checked })}
-                    className="w-4 h-4 accent-red-600 rounded"
-                  />
-                  <span className="text-xs font-semibold text-gray-700">Mark Out of Stock</span>
-                </label>
-
-                <label className="flex items-center gap-2 p-2.5 bg-gray-50 border rounded-xl cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={!!editingProduct.is_hidden}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, is_hidden: e.target.checked })}
-                    className="w-4 h-4 accent-gray-700 rounded"
-                  />
-                  <span className="text-xs font-semibold text-gray-700">Hide from Catalogue</span>
-                </label>
-              </div>
-
               {formError && (
-                <div className="p-3 bg-red-50 text-red-700 border border-red-200 rounded-xl text-xs flex items-center gap-2">
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
                   <span>{formError}</span>
                 </div>
               )}
 
-              {/* STICKY SAVE BAR */}
-              <div className="pt-3 border-t border-gray-100 flex gap-2">
+              <div className="pt-3 border-t border-gray-100 flex items-center justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="flex-1 py-2.5 text-xs font-semibold border border-gray-200 rounded-xl hover:bg-gray-50"
+                  className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 text-xs font-bold bg-brand-600 text-white rounded-xl hover:bg-brand-700 shadow flex items-center justify-center gap-1.5"
+                  className="px-6 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-md"
                 >
-                  <Save className="w-4 h-4" /> Save Product
+                  Save Product
                 </button>
               </div>
-
             </form>
           </div>
         </div>
       )}
 
-      {/* DELETE CONFIRMATION DIALOG */}
+      {/* --- MODAL: Add Banner Slide --- */}
+      {isBannerModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 space-y-5 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <h3 className="font-serif font-bold text-lg text-gray-900">Add New Banner Slide</h3>
+              <button onClick={() => setIsBannerModalOpen(false)} className="p-1 text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddBanner} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Badge Tag</label>
+                <input
+                  type="text"
+                  value={newBannerBadge}
+                  onChange={(e) => setNewBannerBadge(e.target.value)}
+                  placeholder="NEW LAUNCH 2026"
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Banner Main Title</label>
+                <input
+                  type="text"
+                  value={newBannerTitle}
+                  onChange={(e) => setNewBannerTitle(e.target.value)}
+                  placeholder="Surat Direct Wholesale Manufacturer"
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Subtitle</label>
+                <input
+                  type="text"
+                  value={newBannerSubtitle}
+                  onChange={(e) => setNewBannerSubtitle(e.target.value)}
+                  placeholder="Exclusive Suit Material Collections at Factory Rates"
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Banner Image</label>
+                <label className="cursor-pointer bg-brand-50 hover:bg-brand-100 text-brand-700 px-4 py-2.5 rounded-xl border border-brand-200 text-xs font-bold flex items-center justify-center gap-2">
+                  {isUploadingBanner ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                  Choose Image File
+                  <input type="file" accept="image/*" onChange={handleBannerFileUpload} className="hidden" />
+                </label>
+                {newBannerImageUrl && (
+                  <img src={newBannerImageUrl} alt="Preview" className="w-full h-24 object-cover rounded-xl mt-2 border" />
+                )}
+              </div>
+
+              <div className="pt-3 border-t border-gray-100 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsBannerModalOpen(false)}
+                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-md"
+                >
+                  Create Banner Slide
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL: Quick Lock Dialog --- */}
+      {quickLockProduct && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
+            <h3 className="font-bold text-sm text-gray-900 flex items-center gap-2">
+              <Lock className="w-4 h-4 text-amber-600" /> Lock "{quickLockProduct.name}"
+            </h3>
+            <p className="text-xs text-gray-500">Enter a password required for boutique buyers to view this design.</p>
+            <input
+              type="password"
+              value={quickPassword}
+              onChange={(e) => setQuickPassword(e.target.value)}
+              placeholder="Enter access password"
+              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none"
+            />
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                onClick={() => setQuickLockProduct(null)}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleApplyQuickLock}
+                className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold shadow-md"
+              >
+                Apply Lock
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL: Delete Confirmation --- */}
       {deleteTargetId && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 max-w-sm w-full space-y-4 shadow-modal text-center">
-            <Trash2 className="w-10 h-10 text-red-600 mx-auto" />
-            <h3 className="font-serif font-bold text-lg text-gray-900">Delete Product Permanently?</h3>
-            <p className="text-xs text-gray-500">
-              This action cannot be undone. To temporarily hide a product instead, use the "Hide" toggle.
-            </p>
-            <div className="flex gap-2 pt-2">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
+            <h3 className="font-bold text-sm text-red-600 flex items-center gap-2">
+              <Trash2 className="w-4 h-4" /> Delete Product Permanently?
+            </h3>
+            <p className="text-xs text-gray-500">This action cannot be undone. Are you sure you want to remove this item?</p>
+            <div className="flex justify-end gap-2 pt-2">
               <button
                 onClick={() => setDeleteTargetId(null)}
-                className="flex-1 py-2.5 text-xs font-semibold border border-gray-200 rounded-xl hover:bg-gray-50"
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDeleteProduct}
-                className="flex-1 py-2.5 text-xs font-bold bg-red-600 text-white rounded-xl hover:bg-red-700 shadow"
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow-md"
               >
-                Delete Product
+                Delete Item
               </button>
             </div>
           </div>

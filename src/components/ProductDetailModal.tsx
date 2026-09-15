@@ -4,7 +4,9 @@ import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { Product, PublicProduct } from '@/types';
 import { BUSINESS_CONFIG } from '@/config/business';
-import { X, Check, Plus, MessageCircle, Share2, Sparkles, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useBusinessConfig } from '@/hooks/useBusinessConfig';
+import { WhatsAppIcon } from '@/components/icons/WhatsAppIcon';
+import { X, Lock, Unlock, Check, Plus, AlertCircle, Sparkles, AlertTriangle, Share2, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface ProductDetailModalProps {
   product: Product | PublicProduct | null;
@@ -209,7 +211,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 onClick={handleSingleEnquireWhatsApp}
                 className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all"
               >
-                <MessageCircle className="w-4 h-4 fill-white" /> Quick WhatsApp Enquiry
+                <WhatsAppIcon className="w-4 h-4 fill-white shrink-0" /> Quick WhatsApp Enquiry
               </button>
             </div>
           </div>

@@ -1,34 +1,45 @@
 import fs from 'fs';
 
-// Patch Node fs.readlink for Webpack exFAT drive compatibility
-const origReadlink = fs.readlink;
-fs.readlink = function (path, options, callback) {
-  if (typeof options === 'function') {
-    callback = options;
-    options = undefined;
+// Patch Node fs.readlink & readlinkSync for Windows drive compatibility with Webpack
+const patchReadlinkErr = (err) => {
+  if (err && (err.code === 'EISDIR' || err.code === 'UNKNOWN')) {
+    const e = new Error('EINVAL: invalid argument, readlink');
+    e.code = 'EINVAL';
+    return e;
   }
-  origReadlink.call(fs, path, options, (err, linkString) => {
-    if (err && (err.code === 'EISDIR' || err.code === 'EINVAL')) {
-      const einvalErr = new Error('EINVAL: invalid argument, readlink');
-      einvalErr.code = 'EINVAL';
-      return callback(einvalErr);
-    }
-    callback(err, linkString);
-  });
+  return err;
 };
 
-if (fs.promises) {
+const origReadlink = fs.readlink;
+fs.readlink = function (path, options, callback) {
+  const cb = typeof options === 'function' ? options : callback;
+  const opts = typeof options === 'function' ? undefined : options;
+
+  const handler = (err, linkString) => {
+    cb(patchReadlinkErr(err), linkString);
+  };
+
+  return opts !== undefined
+    ? origReadlink.call(fs, path, opts, handler)
+    : origReadlink.call(fs, path, handler);
+};
+
+const origReadlinkSync = fs.readlinkSync;
+fs.readlinkSync = function (path, options) {
+  try {
+    return origReadlinkSync.call(fs, path, options);
+  } catch (err) {
+    throw patchReadlinkErr(err);
+  }
+};
+
+if (fs.promises && fs.promises.readlink) {
   const origPromisesReadlink = fs.promises.readlink;
   fs.promises.readlink = async function (path, options) {
     try {
       return await origPromisesReadlink.call(fs.promises, path, options);
     } catch (err) {
-      if (err && (err.code === 'EISDIR' || err.code === 'EINVAL')) {
-        const einvalErr = new Error('EINVAL: invalid argument, readlink');
-        einvalErr.code = 'EINVAL';
-        throw einvalErr;
-      }
-      throw err;
+      throw patchReadlinkErr(err);
     }
   };
 }
@@ -36,9 +47,6 @@ if (fs.promises) {
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  experimental: {
-    webpackBuildWorker: false,
-  },
   images: {
     remotePatterns: [
       {
@@ -51,9 +59,11 @@ const nextConfig = {
       },
     ],
   },
-  webpack: (config) => {
-    config.cache = false;
-    config.resolve.symlinks = false;
+  webpack: (config, { dev }) => {
+    if (dev) {
+      // Disable Webpack disk caching in dev mode to prevent stale chunk 404s on Windows
+      config.cache = false;
+    }
     return config;
   },
 };

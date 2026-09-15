@@ -8,6 +8,7 @@ export interface Category {
 export interface Product {
   id: string;
   name: string;
+  volume?: string | null; // e.g. "Vol-12" or "Vol: 1"
   description?: string | null;
   price?: number | null;
   price_visible: boolean;
@@ -31,6 +32,7 @@ export interface Product {
 export interface PublicProduct {
   id: string;
   name: string;
+  volume?: string | null;
   category_id?: string | null;
   category_name?: string | null;
   is_locked: boolean;
@@ -42,6 +44,18 @@ export interface PublicProduct {
   price?: number | null;
   price_visible?: boolean;
   description?: string | null;
+}
+
+export interface Banner {
+  id: string;
+  title: string;
+  subtitle?: string | null;
+  badge?: string | null;
+  image_url?: string | null;
+  link_url?: string | null;
+  is_active: boolean;
+  sort_order: number;
+  created_at?: string;
 }
 
 export interface EnquiryItem {

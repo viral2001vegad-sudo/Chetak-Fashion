@@ -3,10 +3,12 @@
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { BUSINESS_CONFIG } from '@/config/business';
-import { MapPin, Phone, MessageCircle, Instagram, ShieldCheck, ExternalLink } from 'lucide-react';
+import { useBusinessConfig } from '@/hooks/useBusinessConfig';
+import { WhatsAppIcon } from '@/components/icons/WhatsAppIcon';
+import { MapPin, Phone, Instagram, ShieldCheck, ExternalLink } from 'lucide-react';
 
 export const Footer: React.FC = () => {
+  const { config: BUSINESS_CONFIG } = useBusinessConfig();
   return (
     <footer className="bg-gray-900 text-gray-300 pt-10 pb-8 border-t border-gray-800 mt-16">
       <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -18,6 +20,9 @@ export const Footer: React.FC = () => {
               <img
                 src="/logo.svg"
                 alt={BUSINESS_CONFIG.name}
+                width={40}
+                height={40}
+                style={{ width: '100%', height: '100%', maxWidth: '40px', maxHeight: '40px', objectFit: 'contain' }}
                 className="w-full h-full object-contain"
               />
             </div>
@@ -57,7 +62,7 @@ export const Footer: React.FC = () => {
               rel="noopener noreferrer"
               className="flex items-center gap-2 text-emerald-400 hover:text-emerald-300 transition-colors"
             >
-              <MessageCircle className="w-3.5 h-3.5 fill-emerald-400" />
+              <WhatsAppIcon className="w-3.5 h-3.5 fill-emerald-400 shrink-0" />
               <span>WhatsApp Direct Line</span>
             </a>
             <a

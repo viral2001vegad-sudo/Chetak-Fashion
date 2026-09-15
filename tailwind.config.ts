@@ -10,16 +10,16 @@ const config: Config = {
     extend: {
       colors: {
         brand: {
-          50: "#FDF2F2",
-          100: "#F8E8E9",
-          200: "#F1C5C7",
-          300: "#E39296",
-          400: "#D35A60",
-          500: "#C8232C", // Primary Logo Red
-          600: "#B01B24",
-          700: "#98161E", // Primary Dark
-          800: "#7C151B",
-          900: "#65161A",
+          50: "#FDF2F3",
+          100: "#F8E2E4",
+          200: "#F0B9BC",
+          300: "#E2868B",
+          400: "#C94850",
+          500: "#B01B24",
+          600: "#98161E", // Primary Logo Maroon Red
+          700: "#7C1117",
+          800: "#630C11",
+          900: "#4B090D",
         },
         accent: {
           DEFAULT: "#D4AF37", // Warm Gold Accent
