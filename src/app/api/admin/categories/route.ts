@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
-import { MOCK_CATEGORIES } from '@/lib/mockData';
 import { Category } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
 const isUUID = (str?: string) => str ? /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str) : false;
 
-// Admin GET - fetch all categories
+// Admin GET - fetch all categories directly from Supabase DB
 export async function GET() {
   try {
     const supabase = createAdminClient();
@@ -16,18 +15,18 @@ export async function GET() {
       .select('*')
       .order('sort_order', { ascending: true });
 
-    if (error || !data || data.length === 0) {
-      return NextResponse.json({ categories: MOCK_CATEGORIES });
+    if (!error && Array.isArray(data)) {
+      return NextResponse.json({ categories: data });
     }
 
-    return NextResponse.json({ categories: data });
+    return NextResponse.json({ categories: [] });
   } catch (err) {
     console.error('Categories GET catch:', err);
-    return NextResponse.json({ categories: MOCK_CATEGORIES });
+    return NextResponse.json({ categories: [] });
   }
 }
 
-// Admin POST - add or update category
+// Admin POST - add or update category directly in Supabase DB
 export async function POST(req: NextRequest) {
   let categoryName = 'New Category';
   try {
@@ -53,9 +52,8 @@ export async function POST(req: NextRequest) {
       if (!error && data) {
         return NextResponse.json({ category: data, message: 'Category updated in Supabase' });
       }
-      if (error) console.error('Category update error:', error);
     } else {
-      // Insert new category in Supabase (let Supabase generate UUID id)
+      // Insert new category in Supabase
       const { data, error } = await supabase
         .from('categories')
         .insert({ name: categoryName, sort_order: sort_order || 0 })
@@ -65,33 +63,16 @@ export async function POST(req: NextRequest) {
       if (!error && data) {
         return NextResponse.json({ category: data, message: 'Category added to Supabase' });
       }
-      if (error) console.error('Category insert error:', error);
     }
 
-    // Fallback category
-    const fallbackCategory: Category = {
-      id: isUUID(id) ? id : `cat-${Date.now()}`,
-      name: categoryName,
-      sort_order: sort_order || 1,
-    };
-
-    return NextResponse.json({
-      category: fallbackCategory,
-      message: 'Category saved successfully'
-    });
-
+    return NextResponse.json({ message: 'Error saving category' }, { status: 500 });
   } catch (err: any) {
     console.error('Category save error:', err);
-    const fallbackCategory: Category = {
-      id: `cat-${Date.now()}`,
-      name: categoryName,
-      sort_order: 1,
-    };
-    return NextResponse.json({ category: fallbackCategory, message: 'Category saved' });
+    return NextResponse.json({ message: 'Category save error' }, { status: 500 });
   }
 }
 
-// Admin DELETE - delete category
+// Admin DELETE - delete category directly from Supabase DB
 export async function DELETE(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
@@ -111,4 +92,3 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ success: true, message: 'Category deleted' });
   }
 }
-
