@@ -55,6 +55,11 @@ Please share photos and available color sets.`;
   const whatsappUrl = `https://wa.me/${BUSINESS_CONFIG.whatsapp}?text=${encodeURIComponent(waMessage)}`;
 
   const handleCardClick = () => {
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.setItem(`cached_product_${product.id}`, JSON.stringify(product));
+      } catch (e) {}
+    }
     router.push(`/products/${product.id}`);
   };
 
@@ -207,7 +212,7 @@ Please share photos and available color sets.`;
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                router.push(`/products/${product.id}`);
+                handleCardClick();
               }}
               className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-1 px-2 rounded-lg text-[11px] flex items-center justify-center gap-1 transition-all"
               title="View Full Details"
@@ -225,7 +230,7 @@ Please share photos and available color sets.`;
               title="Enquire on WhatsApp"
             >
               <WhatsAppIcon className="w-3.5 h-3.5 fill-white shrink-0" />
-              <span>Direct WA</span>
+              <span>WhatsApp</span>
             </a>
           </div>
         </div>

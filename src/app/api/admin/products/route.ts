@@ -37,7 +37,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { id, name, description, price, price_visible, category_id, images, in_stock, is_hidden, is_featured, is_locked, password, preview_image } = body;
+    const { id, name, volume, description, price, price_visible, category_id, images, in_stock, is_hidden, is_featured, is_locked, password, preview_image } = body;
 
     if (!name || typeof name !== 'string') {
       return NextResponse.json({ message: 'Product name is required' }, { status: 400 });
@@ -52,6 +52,7 @@ export async function POST(req: NextRequest) {
 
     const productPayload: Record<string, any> = {
       name,
+      volume: volume ? String(volume).trim() : null,
       description: description || null,
       price: price ? parseFloat(price) : null,
       price_visible: price_visible !== false,

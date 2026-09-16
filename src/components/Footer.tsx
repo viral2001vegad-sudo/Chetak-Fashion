@@ -63,7 +63,7 @@ export const Footer: React.FC = () => {
               className="flex items-center gap-2 text-emerald-400 hover:text-emerald-300 transition-colors"
             >
               <WhatsAppIcon className="w-3.5 h-3.5 fill-emerald-400 shrink-0" />
-              <span>WhatsApp Direct Line</span>
+              <span>WhatsApp</span>
             </a>
             <a
               href={BUSINESS_CONFIG.googleMapsUrl}

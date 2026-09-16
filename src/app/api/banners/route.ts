@@ -16,7 +16,7 @@ function getStoredBanners(): Banner[] {
       const parsed = JSON.parse(fileData);
       if (Array.isArray(parsed) && parsed.length > 0) return parsed;
     }
-  } catch (_) {}
+  } catch (_) { }
   return MOCK_BANNERS;
 }
 

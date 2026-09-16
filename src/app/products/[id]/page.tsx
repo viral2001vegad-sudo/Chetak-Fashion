@@ -57,13 +57,28 @@ export default function ProductDetailPage() {
   const [unlockedProductData, setUnlockedProductData] = useState<Product | null>(null);
 
   useEffect(() => {
+    // Check if we have cached product data in sessionStorage for instant load
+    if (typeof window !== 'undefined') {
+      const cached = sessionStorage.getItem(`cached_product_${productId}`);
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          setProduct(parsed);
+          setIsLoading(false);
+        } catch (e) {}
+      }
+    }
+
     fetchProductDetails();
   }, [productId]);
 
   const fetchProductDetails = async () => {
-    setIsLoading(true);
+    // Only set loading if product is not already loaded from cache
+    if (!product) {
+      setIsLoading(true);
+    }
     try {
-      // 1. Fetch single product API
+      // 1. Fetch single product API (returns target product + related products in 1 request)
       const res = await fetch(`/api/products/${productId}`);
       const data = await res.json();
 
@@ -73,6 +88,12 @@ export default function ProductDetailPage() {
       }
 
       setProduct(currentProd);
+
+      if (Array.isArray(data.relatedProducts)) {
+        setRelatedProducts(data.relatedProducts);
+      } else {
+        setRelatedProducts([]);
+      }
 
       // Check session storage if unlocked previously
       if (currentProd?.is_locked) {
@@ -87,17 +108,10 @@ export default function ProductDetailPage() {
           }
         }
       }
-
-      // Fetch all products for related catalogue row
-      const allRes = await fetch('/api/products');
-      const allData = await allRes.json();
-      if (Array.isArray(allData.products)) {
-        setRelatedProducts(allData.products.filter((p: any) => p.id !== productId).slice(0, 4));
-      } else {
-        setRelatedProducts([]);
-      }
     } catch (err) {
-      setProduct(null);
+      if (!product) {
+        setProduct(null);
+      }
       setRelatedProducts([]);
     } finally {
       setIsLoading(false);
@@ -483,7 +497,7 @@ Please send catalog PDF and set photos.`;
                   className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs sm:text-sm font-bold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 active:scale-98"
                 >
                   <WhatsAppIcon className="w-5 h-5 fill-white shrink-0" />
-                  <span>Enquire Direct on WhatsApp</span>
+                  <span>WhatsApp</span>
                 </a>
 
                 {/* 3. Call Store */}

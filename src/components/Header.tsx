@@ -100,7 +100,7 @@ export const Header: React.FC<HeaderProps> = ({ searchQuery, onSearchChange }) =
             className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all shadow-md hover:shadow-lg active:scale-95 animate-pulse"
           >
             <WhatsAppIcon className="w-4 h-4 fill-white shrink-0" />
-            <span>Direct WhatsApp</span>
+            <span>WhatsApp</span>
           </a>
         </div>
       </div>

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient, getSupabaseUrl } from '@/lib/supabase/server';
-import { MOCK_PRODUCTS, MOCK_CATEGORIES } from '@/lib/mockData';
 import { sanitizeProductForPublic } from '@/lib/auth/lock';
 import { Product } from '@/types';
 
@@ -14,44 +13,43 @@ export async function GET(
     const productId = params.id;
     const supabase = createAdminClient();
 
-    // 1. Fetch categories
-    const { data: dbCategories } = await supabase
-      .from('categories')
-      .select('*')
-      .order('sort_order', { ascending: true });
+    // Fetch target product, categories, and related products in parallel
+    const [catRes, prodRes, relatedRes] = await Promise.all([
+      supabase.from('categories').select('*').order('sort_order', { ascending: true }),
+      supabase.from('products').select('*').eq('id', productId).single(),
+      supabase.from('products').select('*').neq('id', productId).eq('is_hidden', false).limit(6)
+    ]);
 
-    const categoriesList = Array.isArray(dbCategories) ? dbCategories : [];
+    const categoriesList = Array.isArray(catRes.data) ? catRes.data : [];
     const catMap: Record<string, string> = {};
     categoriesList.forEach(c => { catMap[c.id] = c.name; });
 
-    // 2. Fetch target product
-    let targetProduct: Product | undefined;
-
-    const { data: dbProduct, error: prodError } = await supabase
-      .from('products')
-      .select('*')
-      .eq('id', productId)
-      .single();
-
-    if (!prodError && dbProduct) {
-      targetProduct = {
-        ...dbProduct,
-        category_name: dbProduct.category_id ? (catMap[dbProduct.category_id] || 'General') : 'General'
-      };
-    }
-
-    if (!targetProduct) {
+    if (prodRes.error || !prodRes.data) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
 
+    const targetProduct: Product = {
+      ...prodRes.data,
+      category_name: prodRes.data.category_id ? (catMap[prodRes.data.category_id] || 'General') : 'General'
+    };
+
     const publicProduct = sanitizeProductForPublic(targetProduct);
+
+    const relatedProducts = Array.isArray(relatedRes.data)
+      ? relatedRes.data.map(p => sanitizeProductForPublic({
+          ...p,
+          category_name: p.category_id ? (catMap[p.category_id] || 'General') : 'General'
+        }))
+      : [];
 
     return NextResponse.json({
       product: publicProduct,
-      category_name: targetProduct.category_id ? (catMap[targetProduct.category_id] || 'General') : 'General'
+      relatedProducts,
+      category_name: targetProduct.category_name
     });
 
   } catch (err: any) {
     return NextResponse.json({ error: err?.message || String(err) }, { status: 500 });
   }
 }
+

@@ -556,6 +556,7 @@ export default function AdminDashboardPage() {
   const handleOpenAddModal = () => {
     setEditingProduct({
       name: '',
+      volume: '',
       category_id: categories[0]?.id || 'cat-1',
       price: undefined,
       price_visible: true,
@@ -1443,7 +1444,7 @@ export default function AdminDashboardPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-700 mb-1">Category</label>
                   <select
@@ -1457,6 +1458,17 @@ export default function AdminDashboardPage() {
                       </option>
                     ))}
                   </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Volume / Catalog Tag</label>
+                  <input
+                    type="text"
+                    value={editingProduct.volume || ''}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, volume: e.target.value })}
+                    placeholder="e.g. Vol 07 or Vol-1"
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none"
+                  />
                 </div>
 
                 <div>

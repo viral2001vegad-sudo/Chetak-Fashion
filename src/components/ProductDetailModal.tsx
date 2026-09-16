@@ -211,7 +211,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 onClick={handleSingleEnquireWhatsApp}
                 className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all"
               >
-                <WhatsAppIcon className="w-4 h-4 fill-white shrink-0" /> Quick WhatsApp Enquiry
+                <WhatsAppIcon className="w-4 h-4 fill-white shrink-0" /> WhatsApp
               </button>
             </div>
           </div>
