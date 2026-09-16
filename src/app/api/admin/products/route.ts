@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAdminClient } from '@/lib/supabase/server';
+import { createAdminClient, deleteStorageFiles } from '@/lib/supabase/server';
 import { hashPassword } from '@/lib/auth/lock';
 
 export const dynamic = 'force-dynamic';
@@ -92,6 +92,25 @@ export async function POST(req: NextRequest) {
     }
 
     if (id && isUUID(id)) {
+      // Fetch old images to clean up any removed photos from Supabase Storage
+      const { data: existingProduct } = await supabase
+        .from('products')
+        .select('images, preview_image')
+        .eq('id', id)
+        .single();
+
+      if (existingProduct) {
+        const oldUrls = [
+          ...(Array.isArray(existingProduct.images) ? existingProduct.images : []),
+          existingProduct.preview_image
+        ].filter(Boolean);
+        const newUrls = [...validImages, productPayload.preview_image].filter(Boolean);
+        const removedUrls = oldUrls.filter(u => u && !newUrls.includes(u));
+        if (removedUrls.length > 0) {
+          await deleteStorageFiles(supabase, removedUrls);
+        }
+      }
+
       // Update existing product
       const { data, error } = await supabase
         .from('products')
@@ -128,7 +147,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// Admin DELETE - Delete product from Supabase DB
+// Admin DELETE - Delete product and its uploaded images from Supabase DB & Storage
 export async function DELETE(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
@@ -139,11 +158,29 @@ export async function DELETE(req: NextRequest) {
     }
 
     const supabase = createAdminClient();
+
+    // 1. Fetch product to clean up uploaded images from Supabase Storage
+    const { data: product } = await supabase
+      .from('products')
+      .select('images, preview_image')
+      .eq('id', id)
+      .single();
+
+    if (product) {
+      const allImageUrls = [
+        ...(Array.isArray(product.images) ? product.images : []),
+        product.preview_image
+      ];
+      await deleteStorageFiles(supabase, allImageUrls);
+    }
+
+    // 2. Delete product record from database
     await supabase.from('products').delete().eq('id', id);
 
     const products = await getAllProducts(supabase);
-    return NextResponse.json({ success: true, products, message: 'Product deleted successfully' });
-  } catch (err) {
-    return NextResponse.json({ message: 'Delete error' }, { status: 500 });
+    return NextResponse.json({ success: true, products, message: 'Product and associated images deleted successfully' });
+  } catch (err: any) {
+    console.error('Delete product error:', err);
+    return NextResponse.json({ message: err?.message || 'Delete error' }, { status: 500 });
   }
 }

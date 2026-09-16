@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAdminClient } from '@/lib/supabase/server';
+import { createAdminClient, deleteStorageFiles } from '@/lib/supabase/server';
 import { Category } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -43,11 +43,17 @@ export async function POST(req: NextRequest) {
       name: categoryName,
       sort_order: sort_order || 0,
     };
-    if (image_url) {
+    if (image_url !== undefined) {
       catPayload.image_url = image_url;
     }
 
     if (id && isUUID(id)) {
+      // Fetch existing category to clean up removed cover image if replaced
+      const { data: existingCat } = await supabase.from('categories').select('image_url').eq('id', id).single();
+      if (existingCat?.image_url && existingCat.image_url !== image_url) {
+        await deleteStorageFiles(supabase, [existingCat.image_url]);
+      }
+
       // Update existing category in Supabase
       const { data, error } = await supabase
         .from('categories')
@@ -77,7 +83,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// Admin DELETE - delete category directly from Supabase DB
+// Admin DELETE - delete category directly from Supabase DB & Storage
 export async function DELETE(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
@@ -89,6 +95,10 @@ export async function DELETE(req: NextRequest) {
 
     const supabase = createAdminClient();
     if (isUUID(id)) {
+      const { data: cat } = await supabase.from('categories').select('image_url').eq('id', id).single();
+      if (cat?.image_url) {
+        await deleteStorageFiles(supabase, [cat.image_url]);
+      }
       await supabase.from('categories').delete().eq('id', id);
     }
 
