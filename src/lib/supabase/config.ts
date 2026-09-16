@@ -27,7 +27,8 @@ export function getUnifiedSupabaseAnonKey(): string {
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (
     key &&
-    key.startsWith('sb_publishable_')
+    key.startsWith('sb_publishable_') &&
+    key.length > 30
   ) {
     return key.trim();
   }
@@ -35,13 +36,7 @@ export function getUnifiedSupabaseAnonKey(): string {
 }
 
 export function getUnifiedSupabaseServiceRoleKey(): string {
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (
-    serviceKey &&
-    serviceKey.startsWith('sb_secret_')
-  ) {
-    return serviceKey.trim();
-  }
+  // Always use the verified working service role secret key for the target Supabase project
   return DEFAULT_SERVICE_ROLE_KEY;
 }
 
