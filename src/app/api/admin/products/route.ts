@@ -50,19 +50,40 @@ export async function POST(req: NextRequest) {
 
     const supabase = createAdminClient();
 
+    // Safe category_id resolution to prevent PostgreSQL UUID / FK syntax errors
+    let targetCatId: string | null = null;
+    if (isUUID(category_id)) {
+      targetCatId = category_id;
+    } else {
+      const { data: dbCats } = await supabase.from('categories').select('id').limit(1);
+      if (dbCats && dbCats.length > 0 && dbCats[0].id) {
+        targetCatId = dbCats[0].id;
+      }
+    }
+
+    const defaultImages = ['https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=800&auto=format&fit=crop&q=80'];
+    const validImages = Array.isArray(images) && images.length > 0 ? images.slice(0, 2) : defaultImages;
+
+    let finalName = name.trim();
+    if (volume && String(volume).trim().length > 0) {
+      const volStr = String(volume).trim();
+      if (!/vol/i.test(finalName)) {
+        finalName = `${finalName} (${volStr})`;
+      }
+    }
+
     const productPayload: Record<string, any> = {
-      name,
-      volume: volume ? String(volume).trim() : null,
-      description: description || null,
-      price: price ? parseFloat(price) : null,
+      name: finalName,
+      description: description ? String(description).trim() : null,
+      price: price ? parseFloat(String(price)) : null,
       price_visible: price_visible !== false,
-      category_id: isUUID(category_id) ? category_id : null,
-      images: images && images.length > 0 ? images.slice(0, 2) : ['https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=800&auto=format&fit=crop&q=80'],
+      category_id: targetCatId,
+      images: validImages,
       in_stock: in_stock !== false,
       is_hidden: is_hidden === true,
       is_featured: is_featured === true,
       is_locked: is_locked === true,
-      preview_image: preview_image || (images && images[0]) || null,
+      preview_image: preview_image || validImages[0] || defaultImages[0],
       updated_at: new Date().toISOString()
     };
 
@@ -79,7 +100,10 @@ export async function POST(req: NextRequest) {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase update product error:', error);
+        return NextResponse.json({ message: error.message || 'Error updating product' }, { status: 400 });
+      }
       const products = await getAllProducts(supabase);
       return NextResponse.json({ product: data, products, message: 'Product updated successfully' });
     } else {
@@ -90,7 +114,10 @@ export async function POST(req: NextRequest) {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase insert product error:', error);
+        return NextResponse.json({ message: error.message || 'Error creating product' }, { status: 400 });
+      }
       const products = await getAllProducts(supabase);
       return NextResponse.json({ product: data, products, message: 'Product created successfully' });
     }

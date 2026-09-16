@@ -561,7 +561,7 @@ export default function AdminDashboardPage() {
       price: undefined,
       price_visible: true,
       description: '',
-      images: ['https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=800&auto=format&fit=crop&q=80'],
+      images: [],
       in_stock: true,
       is_hidden: false,
       is_featured: false,
@@ -600,8 +600,10 @@ export default function AdminDashboardPage() {
       }
     }
 
+    setFormError('');
+
     try {
-      const sanitizedImages = (editingProduct.images || []).slice(0, 2);
+      const sanitizedImages = (editingProduct.images || []).filter(img => img && img.trim().length > 0).slice(0, 2);
 
       const res = await fetch('/api/admin/products', {
         method: 'POST',
@@ -615,15 +617,22 @@ export default function AdminDashboardPage() {
       });
 
       const data = await res.json();
-      if (data.products) {
+
+      if (!res.ok) {
+        setFormError(data.message || 'Error saving product. Please check details.');
+        return;
+      }
+
+      if (data.products && Array.isArray(data.products)) {
         setProducts(data.products);
       } else {
         await fetchProducts();
       }
+
       showToast(editingProduct.id ? 'Product updated successfully!' : 'New product created!');
       setIsModalOpen(false);
-    } catch (err) {
-      setFormError('Error saving product');
+    } catch (err: any) {
+      setFormError(err?.message || 'Error saving product');
     }
   };
 
@@ -673,7 +682,7 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row text-gray-800">
-      
+
       {/* Toast Alert */}
       {toastMessage && (
         <div className="fixed top-5 right-5 z-50 bg-gray-900 text-white text-xs font-semibold px-4 py-3 rounded-2xl shadow-xl flex items-center gap-2 border border-gray-700 animate-bounce-short">
@@ -700,9 +709,8 @@ export default function AdminDashboardPage() {
 
       {/* Left Sidebar Navigation */}
       <aside
-        className={`fixed md:sticky top-0 left-0 z-40 h-screen w-64 bg-white border-r border-gray-200 flex flex-col justify-between transition-transform duration-200 ease-in-out ${
-          isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
-        }`}
+        className={`fixed md:sticky top-0 left-0 z-40 h-screen w-64 bg-white border-r border-gray-200 flex flex-col justify-between transition-transform duration-200 ease-in-out ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+          }`}
       >
         {/* Brand Title */}
         <div className="p-6 border-b border-gray-100">
@@ -732,19 +740,17 @@ export default function AdminDashboardPage() {
           {/* Products Tab */}
           <button
             onClick={() => { setActiveTab('products'); setIsMobileSidebarOpen(false); }}
-            className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs font-bold transition-all ${
-              activeTab === 'products'
+            className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs font-bold transition-all ${activeTab === 'products'
                 ? 'bg-brand-600 text-white shadow-md shadow-brand-600/20'
                 : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-            }`}
+              }`}
           >
             <div className="flex items-center gap-3">
               <Package className="w-4 h-4" />
               <span>Products Catalogue</span>
             </div>
-            <span className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold ${
-              activeTab === 'products' ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
-            }`}>
+            <span className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold ${activeTab === 'products' ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
+              }`}>
               {products.length}
             </span>
           </button>
@@ -752,19 +758,17 @@ export default function AdminDashboardPage() {
           {/* Categories Tab */}
           <button
             onClick={() => { setActiveTab('categories'); setIsMobileSidebarOpen(false); }}
-            className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs font-bold transition-all ${
-              activeTab === 'categories'
+            className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs font-bold transition-all ${activeTab === 'categories'
                 ? 'bg-brand-600 text-white shadow-md shadow-brand-600/20'
                 : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-            }`}
+              }`}
           >
             <div className="flex items-center gap-3">
               <FolderTree className="w-4 h-4" />
               <span>Categories</span>
             </div>
-            <span className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold ${
-              activeTab === 'categories' ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
-            }`}>
+            <span className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold ${activeTab === 'categories' ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
+              }`}>
               {categories.length}
             </span>
           </button>
@@ -772,19 +776,17 @@ export default function AdminDashboardPage() {
           {/* Banners Tab */}
           <button
             onClick={() => { setActiveTab('banners'); setIsMobileSidebarOpen(false); }}
-            className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs font-bold transition-all ${
-              activeTab === 'banners'
+            className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs font-bold transition-all ${activeTab === 'banners'
                 ? 'bg-brand-600 text-white shadow-md shadow-brand-600/20'
                 : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-            }`}
+              }`}
           >
             <div className="flex items-center gap-3">
               <ImageIcon className="w-4 h-4" />
               <span>Banner Slides</span>
             </div>
-            <span className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold ${
-              activeTab === 'banners' ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
-            }`}>
+            <span className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold ${activeTab === 'banners' ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
+              }`}>
               {banners.length}
             </span>
           </button>
@@ -792,11 +794,10 @@ export default function AdminDashboardPage() {
           {/* Security / Passwords Tab */}
           <button
             onClick={() => { setActiveTab('security'); setIsMobileSidebarOpen(false); }}
-            className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs font-bold transition-all ${
-              activeTab === 'security'
+            className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs font-bold transition-all ${activeTab === 'security'
                 ? 'bg-brand-600 text-white shadow-md shadow-brand-600/20'
                 : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-            }`}
+              }`}
           >
             <div className="flex items-center gap-3">
               <ShieldCheck className="w-4 h-4" />
@@ -807,11 +808,10 @@ export default function AdminDashboardPage() {
           {/* Settings Tab */}
           <button
             onClick={() => { setActiveTab('settings'); setIsMobileSidebarOpen(false); }}
-            className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs font-bold transition-all ${
-              activeTab === 'settings'
+            className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs font-bold transition-all ${activeTab === 'settings'
                 ? 'bg-brand-600 text-white shadow-md shadow-brand-600/20'
                 : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-            }`}
+              }`}
           >
             <div className="flex items-center gap-3">
               <Settings className="w-4 h-4" />
@@ -844,7 +844,7 @@ export default function AdminDashboardPage() {
 
       {/* Main Content Area */}
       <main className="flex-1 p-4 sm:p-8 max-w-7xl mx-auto w-full">
-        
+
         {/* Top Action Header Bar */}
         <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 bg-white p-5 rounded-3xl border border-gray-200/80 shadow-sm">
           <div>
@@ -963,9 +963,8 @@ export default function AdminDashboardPage() {
                 {filteredProducts.map((product) => (
                   <div
                     key={product.id}
-                    className={`bg-white rounded-3xl border overflow-hidden transition-all shadow-sm hover:shadow-md flex flex-col justify-between ${
-                      product.is_hidden ? 'border-gray-200 opacity-60' : 'border-gray-200/80'
-                    }`}
+                    className={`bg-white rounded-3xl border overflow-hidden transition-all shadow-sm hover:shadow-md flex flex-col justify-between ${product.is_hidden ? 'border-gray-200 opacity-60' : 'border-gray-200/80'
+                      }`}
                   >
                     <div>
                       {/* Product Image & Badges */}
@@ -1006,11 +1005,10 @@ export default function AdminDashboardPage() {
                         <button
                           onClick={() => handleToggleHide(product)}
                           title={product.is_hidden ? 'Make Visible' : 'Hide from Public'}
-                          className={`p-2 rounded-xl text-xs font-semibold flex items-center gap-1 transition-colors ${
-                            product.is_hidden
+                          className={`p-2 rounded-xl text-xs font-semibold flex items-center gap-1 transition-colors ${product.is_hidden
                               ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                               : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
-                          }`}
+                            }`}
                         >
                           {product.is_hidden ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5 text-emerald-600" />}
                         </button>
@@ -1019,11 +1017,10 @@ export default function AdminDashboardPage() {
                         <button
                           onClick={() => handleToggleStock(product)}
                           title={product.in_stock ? 'Mark Out of Stock' : 'Mark In Stock'}
-                          className={`p-2 rounded-xl text-xs font-semibold flex items-center gap-1 transition-colors ${
-                            product.in_stock
+                          className={`p-2 rounded-xl text-xs font-semibold flex items-center gap-1 transition-colors ${product.in_stock
                               ? 'bg-blue-100 text-blue-800 hover:bg-blue-200'
                               : 'bg-red-100 text-red-800 hover:bg-red-200'
-                          }`}
+                            }`}
                         >
                           {product.in_stock ? <CheckCircle className="w-3.5 h-3.5 text-blue-600" /> : <XCircle className="w-3.5 h-3.5 text-red-600" />}
                         </button>
@@ -1032,11 +1029,10 @@ export default function AdminDashboardPage() {
                         <button
                           onClick={() => handleToggleLockQuick(product)}
                           title={product.is_locked ? 'Remove Password Lock' : 'Add Password Protection'}
-                          className={`p-2 rounded-xl text-xs font-semibold flex items-center gap-1 transition-colors ${
-                            product.is_locked
+                          className={`p-2 rounded-xl text-xs font-semibold flex items-center gap-1 transition-colors ${product.is_locked
                               ? 'bg-amber-100 text-amber-800 hover:bg-amber-200'
                               : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                          }`}
+                            }`}
                         >
                           {product.is_locked ? <Lock className="w-3.5 h-3.5 text-amber-600" /> : <Unlock className="w-3.5 h-3.5" />}
                         </button>
@@ -1503,7 +1499,7 @@ export default function AdminDashboardPage() {
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="block text-xs font-bold text-gray-700">Product Images (Maximum 2 Images)</label>
-                  <span className={`text-[11px] font-bold ${ (editingProduct.images || []).length >= 2 ? 'text-amber-600' : 'text-gray-500' }`}>
+                  <span className={`text-[11px] font-bold ${(editingProduct.images || []).length >= 2 ? 'text-amber-600' : 'text-gray-500'}`}>
                     {(editingProduct.images || []).length}/2 Images
                   </span>
                 </div>
