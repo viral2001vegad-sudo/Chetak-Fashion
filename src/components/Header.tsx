@@ -41,7 +41,7 @@ export const Header: React.FC<HeaderProps> = ({ searchQuery, onSearchChange }) =
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-sm">
       {/* Top Announcement Bar */}
-      <div className="bg-brand-700 text-white text-xs py-1.5 px-4 text-center font-medium tracking-wide flex justify-between items-center max-w-7xl mx-auto">
+      <div className="bg-brand-700 text-white text-xs py-1.5 px-4 sm:px-6 lg:px-8 xl:px-10 text-center font-medium tracking-wide flex justify-between items-center max-w-[1920px] mx-auto">
         <span className="truncate">📍 Surat Wholesale Market • {BUSINESS_CONFIG.tagline}</span>
         <div className="flex items-center gap-3 shrink-0">
           <span>GSTIN: {BUSINESS_CONFIG.gstin}</span>
@@ -49,7 +49,7 @@ export const Header: React.FC<HeaderProps> = ({ searchQuery, onSearchChange }) =
       </div>
 
       {/* Main Branding Header */}
-      <div className="max-w-7xl mx-auto px-4 py-3 flex flex-wrap sm:flex-nowrap items-center justify-between gap-4">
+      <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 py-3 flex flex-wrap sm:flex-nowrap items-center justify-between gap-4">
         {/* Brand Logo & Name */}
         <Link href="/" className="flex items-center gap-3.5 group">
           <div className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-white border border-brand-100 shadow-sm p-1.5 flex items-center justify-center overflow-hidden shrink-0 group-hover:scale-105 transition-transform">
@@ -106,7 +106,7 @@ export const Header: React.FC<HeaderProps> = ({ searchQuery, onSearchChange }) =
       </div>
 
       {/* Search Bar Strip */}
-      <div className="max-w-7xl mx-auto px-4 pb-3">
+      <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 pb-3">
         <div className="relative">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input

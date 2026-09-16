@@ -135,7 +135,7 @@ export default function CataloguePage() {
       <Header searchQuery={searchQuery} onSearchChange={setSearchQuery} />
 
       {/* Main Content Area */}
-      <main className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6 flex-1 w-full space-y-5">
+      <main className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 py-4 sm:py-6 flex-1 w-full space-y-5">
         
         {/* Dynamic Admin Managed Hero Banner Carousel */}
         {activeBanner && (
@@ -259,10 +259,10 @@ export default function CataloguePage() {
 
         </div>
 
-        {/* Products 2-Column Grid */}
+        {/* Products Grid - Dynamic Full Width Columns */}
         {isLoading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5 animate-pulse">
-            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-3 sm:gap-5 animate-pulse">
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((i) => (
               <div key={i} className="h-72 bg-gray-200 rounded-2xl" />
             ))}
           </div>
@@ -284,7 +284,7 @@ export default function CataloguePage() {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-3 sm:gap-5">
             {filteredProducts.map((prod) => {
               const bucketItem = bucket.find((item) => item.product.id === prod.id);
               return (

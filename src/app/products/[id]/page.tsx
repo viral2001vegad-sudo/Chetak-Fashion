@@ -242,7 +242,7 @@ Please send catalog PDF and set photos.`;
 
       {/* Breadcrumb Navigation Strip */}
       <div className="bg-white border-b border-gray-100 py-3 px-4 shadow-sm">
-        <div className="max-w-7xl mx-auto flex items-center justify-between text-xs font-semibold">
+        <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 flex items-center justify-between text-xs font-semibold">
           <Link
             href="/"
             className="inline-flex items-center gap-1.5 text-gray-600 hover:text-brand-700 transition-colors bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-xl"
@@ -260,7 +260,7 @@ Please send catalog PDF and set photos.`;
       </div>
 
       {/* Main Page Content */}
-      <main className="max-w-7xl mx-auto px-4 py-8 w-full flex-grow space-y-12">
+      <main className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 py-8 w-full flex-grow space-y-12">
         
         {/* Product Showcase Section */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 bg-white p-6 sm:p-8 rounded-3xl border border-gray-200/80 shadow-soft">
@@ -541,7 +541,7 @@ Please send catalog PDF and set photos.`;
               </Link>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6">
               {relatedProducts.map((prod) => (
                 <ProductCard
                   key={prod.id}

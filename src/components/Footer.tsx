@@ -11,7 +11,7 @@ export const Footer: React.FC = () => {
   const { config: BUSINESS_CONFIG } = useBusinessConfig();
   return (
     <footer className="bg-gray-900 text-gray-300 pt-10 pb-8 border-t border-gray-800 mt-16">
-      <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-8">
+      <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 grid grid-cols-1 md:grid-cols-3 gap-8">
         
         {/* Brand & Address */}
         <div className="space-y-3">
@@ -97,7 +97,7 @@ export const Footer: React.FC = () => {
 
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 mt-8 pt-4 border-t border-gray-800 flex flex-col sm:flex-row items-center justify-between text-[11px] text-gray-500 gap-2">
+      <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 mt-8 pt-4 border-t border-gray-800 flex flex-col sm:flex-row items-center justify-between text-[11px] text-gray-500 gap-2">
         <p>© {new Date().getFullYear()} {BUSINESS_CONFIG.name}. All rights reserved. Surat Wholesale Market PWA.</p>
         <p>Built with Secure Password Lock Engine & Next.js 14</p>
       </div>
