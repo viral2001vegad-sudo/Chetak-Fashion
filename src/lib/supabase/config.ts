@@ -27,10 +27,7 @@ export function getUnifiedSupabaseAnonKey(): string {
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (
     key &&
-    key.trim().length > 20 &&
-    !key.includes('example') &&
-    !key.includes('your-') &&
-    !key.includes('placeholder')
+    key.startsWith('sb_publishable_')
   ) {
     return key.trim();
   }
@@ -41,10 +38,7 @@ export function getUnifiedSupabaseServiceRoleKey(): string {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (
     serviceKey &&
-    serviceKey.trim().length > 20 &&
-    !serviceKey.includes('example') &&
-    !serviceKey.includes('your-') &&
-    !serviceKey.includes('placeholder')
+    serviceKey.startsWith('sb_secret_')
   ) {
     return serviceKey.trim();
   }
