@@ -81,9 +81,12 @@ export default function AdminDashboardPage() {
 
   // Category Add/Edit State
   const [newCatName, setNewCatName] = useState('');
+  const [newCatImageUrl, setNewCatImageUrl] = useState('');
   const [isAddingCat, setIsAddingCat] = useState(false);
   const [editingCatId, setEditingCatId] = useState<string | null>(null);
   const [editingCatName, setEditingCatName] = useState('');
+  const [editingCatImageUrl, setEditingCatImageUrl] = useState('');
+  const [isUploadingCatImage, setIsUploadingCatImage] = useState(false);
 
   // Banners Modal & State
   const [isBannerModalOpen, setIsBannerModalOpen] = useState(false);
@@ -212,6 +215,39 @@ export default function AdminDashboardPage() {
   };
 
   // --- Category Handlers ---
+  const handleCatImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, isEdit: boolean = false) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingCatImage(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/admin/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (data.url) {
+        if (isEdit) {
+          setEditingCatImageUrl(data.url);
+        } else {
+          setNewCatImageUrl(data.url);
+        }
+        showToast('Category cover photo uploaded!');
+      } else {
+        showToast('Image upload failed');
+      }
+    } catch (err) {
+      showToast('Error uploading category image');
+    } finally {
+      setIsUploadingCatImage(false);
+      e.target.value = '';
+    }
+  };
+
   const handleAddCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     const nameToAdd = newCatName.trim();
@@ -222,7 +258,7 @@ export default function AdminDashboardPage() {
       const res = await fetch('/api/admin/categories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: nameToAdd }),
+        body: JSON.stringify({ name: nameToAdd, image_url: newCatImageUrl.trim() || null }),
       });
       const data = await res.json();
       if (data.categories) {
@@ -232,6 +268,7 @@ export default function AdminDashboardPage() {
       }
       showToast(`Category "${nameToAdd}" created!`);
       setNewCatName('');
+      setNewCatImageUrl('');
     } catch (err) {
       showToast('Error adding category');
     } finally {
@@ -245,7 +282,7 @@ export default function AdminDashboardPage() {
       const res = await fetch('/api/admin/categories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, name: editingCatName.trim() }),
+        body: JSON.stringify({ id, name: editingCatName.trim(), image_url: editingCatImageUrl.trim() || null }),
       });
       const data = await res.json();
       if (data.categories) {
@@ -255,6 +292,8 @@ export default function AdminDashboardPage() {
       }
       showToast('Category updated!');
       setEditingCatId(null);
+      setEditingCatName('');
+      setEditingCatImageUrl('');
     } catch (err) {
       showToast('Error updating category');
     }
@@ -1082,32 +1121,61 @@ export default function AdminDashboardPage() {
         {activeTab === 'categories' && (
           <div className="space-y-6">
             {/* Add Category Form */}
-            <div className="bg-white p-5 rounded-3xl border border-gray-200/80 shadow-sm">
-              <h3 className="text-sm font-bold text-gray-900 mb-3">Create New Catalogue Category</h3>
-              <form onSubmit={handleAddCategory} className="flex gap-3">
-                <input
-                  type="text"
-                  value={newCatName}
-                  onChange={(e) => setNewCatName(e.target.value)}
-                  placeholder="Category Name (e.g. Silk Cotton Suits, Printed Kurtis...)"
-                  className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none"
-                  required
-                />
-                <button
-                  type="submit"
-                  disabled={isAddingCat}
-                  className="bg-brand-600 hover:bg-brand-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 shrink-0"
-                >
-                  {isAddingCat ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                  Add Category
-                </button>
+            <div className="bg-white p-5 rounded-3xl border border-gray-200/80 shadow-sm space-y-4">
+              <h3 className="text-sm font-bold text-gray-900">Create New Catalogue Category</h3>
+              <form onSubmit={handleAddCategory} className="space-y-3">
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <input
+                    type="text"
+                    value={newCatName}
+                    onChange={(e) => setNewCatName(e.target.value)}
+                    placeholder="Category Name (e.g. Silk Cotton Suits, Printed Kurtis...)"
+                    className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none"
+                    required
+                  />
+                  <div className="flex items-center gap-2">
+                    <label className="cursor-pointer px-3.5 py-2.5 bg-rose-50 hover:bg-rose-100 text-[#701A24] border border-rose-200 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 shrink-0">
+                      {isUploadingCatImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                      <span>Upload Image</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleCatImageUpload(e, false)}
+                        className="hidden"
+                      />
+                    </label>
+                    <button
+                      type="submit"
+                      disabled={isAddingCat}
+                      className="bg-brand-600 hover:bg-brand-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 shrink-0"
+                    >
+                      {isAddingCat ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                      Add Category
+                    </button>
+                  </div>
+                </div>
+
+                {newCatImageUrl && (
+                  <div className="flex items-center gap-3 p-2 bg-gray-50 rounded-xl border border-gray-200 w-fit">
+                    <img src={newCatImageUrl} alt="Category preview" className="w-10 h-10 object-cover rounded-lg" />
+                    <span className="text-[11px] text-gray-600 truncate max-w-[200px]">{newCatImageUrl}</span>
+                    <button
+                      type="button"
+                      onClick={() => setNewCatImageUrl('')}
+                      className="p-1 hover:bg-gray-200 rounded-lg text-gray-500"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
               </form>
             </div>
 
             {/* Category Directory List */}
             <div className="bg-white rounded-3xl border border-gray-200/80 shadow-sm overflow-hidden">
-              <div className="p-4 bg-gray-50 border-b border-gray-200 text-xs font-bold text-gray-600 grid grid-cols-12 gap-4">
-                <span className="col-span-6">Category Name</span>
+              <div className="p-4 bg-gray-50 border-b border-gray-200 text-xs font-bold text-gray-600 grid grid-cols-12 gap-4 items-center">
+                <span className="col-span-2">Thumbnail</span>
+                <span className="col-span-4">Category Name</span>
                 <span className="col-span-3 text-center">Items Count</span>
                 <span className="col-span-3 text-right">Actions</span>
               </div>
@@ -1116,20 +1184,54 @@ export default function AdminDashboardPage() {
                 {categories.map((cat) => {
                   const count = products.filter((p) => p.category_id === cat.id).length;
                   const isEditing = editingCatId === cat.id;
+                  const catProd = products.find((p) => p.category_id === cat.id || (p.category_name && p.category_name.toLowerCase().includes(cat.name.toLowerCase())));
+                  const displayImage = cat.image_url || (catProd?.images && catProd.images[0]) || catProd?.preview_image || (products[0]?.images && products[0].images[0]) || '/logo.svg';
 
                   return (
                     <div key={cat.id} className="p-4 grid grid-cols-12 gap-4 items-center text-xs font-semibold">
-                      <div className="col-span-6 flex items-center gap-2">
-                        <FolderTree className="w-4 h-4 text-brand-600 shrink-0" />
+                      <div className="col-span-2">
+                        <div className="w-10 h-10 rounded-xl overflow-hidden bg-gray-100 border border-gray-200 flex items-center justify-center">
+                          <img src={displayImage} alt={cat.name} className="w-full h-full object-cover" />
+                        </div>
+                      </div>
+
+                      <div className="col-span-4 flex items-center gap-2">
                         {isEditing ? (
-                          <input
-                            type="text"
-                            value={editingCatName}
-                            onChange={(e) => setEditingCatName(e.target.value)}
-                            className="px-3 py-1 bg-white border border-brand-500 rounded-lg text-xs font-medium outline-none"
-                          />
+                          <div className="flex flex-col gap-2 w-full">
+                            <input
+                              type="text"
+                              value={editingCatName}
+                              onChange={(e) => setEditingCatName(e.target.value)}
+                              className="px-3 py-1.5 bg-white border border-brand-500 rounded-lg text-xs font-medium outline-none w-full"
+                              placeholder="Category name"
+                            />
+                            <div className="flex items-center gap-2">
+                              <label className="cursor-pointer px-2.5 py-1 bg-rose-50 text-[#701A24] border border-rose-200 rounded-lg text-[11px] font-bold flex items-center gap-1">
+                                {isUploadingCatImage ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
+                                <span>Change Image</span>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={(e) => handleCatImageUpload(e, true)}
+                                  className="hidden"
+                                />
+                              </label>
+                              {editingCatImageUrl && (
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingCatImageUrl('')}
+                                  className="text-[11px] text-red-600 underline font-medium"
+                                >
+                                  Remove Image
+                                </button>
+                              )}
+                            </div>
+                          </div>
                         ) : (
-                          <span className="text-gray-900 font-bold">{cat.name}</span>
+                          <div className="flex flex-col">
+                            <span className="text-gray-900 font-bold">{cat.name}</span>
+                            {cat.image_url && <span className="text-[10px] text-emerald-600 font-medium">Custom Cover Image</span>}
+                          </div>
                         )}
                       </div>
 
@@ -1145,12 +1247,14 @@ export default function AdminDashboardPage() {
                             <button
                               onClick={() => handleUpdateCategory(cat.id)}
                               className="p-1.5 bg-emerald-100 text-emerald-800 rounded-lg hover:bg-emerald-200"
+                              title="Save Category"
                             >
                               <Save className="w-3.5 h-3.5" />
                             </button>
                             <button
-                              onClick={() => setEditingCatId(null)}
+                              onClick={() => { setEditingCatId(null); setEditingCatName(''); setEditingCatImageUrl(''); }}
                               className="p-1.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+                              title="Cancel"
                             >
                               <X className="w-3.5 h-3.5" />
                             </button>
@@ -1158,14 +1262,20 @@ export default function AdminDashboardPage() {
                         ) : (
                           <>
                             <button
-                              onClick={() => { setEditingCatId(cat.id); setEditingCatName(cat.name); }}
+                              onClick={() => {
+                                setEditingCatId(cat.id);
+                                setEditingCatName(cat.name);
+                                setEditingCatImageUrl(cat.image_url || '');
+                              }}
                               className="p-1.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+                              title="Edit Category"
                             >
                               <Edit3 className="w-3.5 h-3.5" />
                             </button>
                             <button
                               onClick={() => handleDeleteCategory(cat.id)}
                               className="p-1.5 bg-red-100 text-red-700 rounded-lg hover:bg-red-200"
+                              title="Delete Category"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>

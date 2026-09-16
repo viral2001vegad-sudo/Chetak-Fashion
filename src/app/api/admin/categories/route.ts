@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
   let categoryName = 'New Category';
   try {
     const body = await req.json();
-    const { id, name, sort_order } = body;
+    const { id, name, image_url, sort_order } = body;
     if (name && typeof name === 'string') categoryName = name.trim();
 
     if (!name || typeof name !== 'string') {
@@ -39,12 +39,19 @@ export async function POST(req: NextRequest) {
     }
 
     const supabase = createAdminClient();
+    const catPayload: Record<string, any> = {
+      name: categoryName,
+      sort_order: sort_order || 0,
+    };
+    if (image_url) {
+      catPayload.image_url = image_url;
+    }
 
     if (id && isUUID(id)) {
       // Update existing category in Supabase
       const { data, error } = await supabase
         .from('categories')
-        .update({ name: categoryName, sort_order: sort_order || 0 })
+        .update(catPayload)
         .eq('id', id)
         .select()
         .single();
@@ -56,7 +63,7 @@ export async function POST(req: NextRequest) {
       // Insert new category in Supabase
       const { data, error } = await supabase
         .from('categories')
-        .insert({ name: categoryName, sort_order: sort_order || 0 })
+        .insert(catPayload)
         .select()
         .single();
 

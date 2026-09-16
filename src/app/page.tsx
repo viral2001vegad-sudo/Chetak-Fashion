@@ -129,8 +129,20 @@ export default function CataloguePage() {
           (p.description && p.description.toLowerCase().includes(searchQuery.toLowerCase()));
 
         // Category Filter
-        const matchesCategory =
-          selectedCategoryId === 'all' || p.category_id === selectedCategoryId;
+        let matchesCategory = selectedCategoryId === 'all';
+        if (!matchesCategory) {
+          const targetCat = categories.find((c) => c.id === selectedCategoryId);
+          const targetCatName = targetCat ? targetCat.name.toLowerCase().replace('dress material', '').trim() : '';
+
+          matchesCategory = Boolean(
+            p.category_id === selectedCategoryId ||
+            (targetCatName !== '' && (
+              (p.category_name && p.category_name.toLowerCase().includes(targetCatName)) ||
+              p.name.toLowerCase().includes(targetCatName) ||
+              (p.description && p.description.toLowerCase().includes(targetCatName))
+            ))
+          );
+        }
 
         return matchesSearch && matchesCategory;
       })
@@ -146,36 +158,6 @@ export default function CataloguePage() {
   }, [products, searchQuery, selectedCategoryId, sortBy]);
 
   const activeBanner = banners.length > 0 ? banners[currentBannerIdx] : null;
-
-  // Visual Category Stories List matching user screenshot
-  const categoryStories = [
-    {
-      id: 'all',
-      name: 'New Launch',
-      badge: 'NEW',
-      image: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=400&auto=format&fit=crop&q=80',
-    },
-    {
-      id: 'cotton',
-      name: 'Cotton',
-      image: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=400&auto=format&fit=crop&q=80',
-    },
-    {
-      id: 'rayon',
-      name: 'Rayon',
-      image: 'https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?w=400&auto=format&fit=crop&q=80',
-    },
-    {
-      id: 'jaam',
-      name: 'Jaam Cotton',
-      image: 'https://images.unsplash.com/photo-1609357605129-26f69add5d6e?w=400&auto=format&fit=crop&q=80',
-    },
-    {
-      id: 'fancy',
-      name: 'Fancy Suits',
-      image: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=400&auto=format&fit=crop&q=80',
-    },
-  ];
 
   return (
     <div className="min-h-screen bg-[#FAF6F7] text-gray-900 flex flex-col justify-between selection:bg-rose-100 selection:text-rose-900">
@@ -264,8 +246,8 @@ export default function CataloguePage() {
 
             {/* Dynamic DB Categories directly from Supabase */}
             {categories.map((cat) => {
-              const catProd = products.find((p) => p.category_id === cat.id);
-              const catImage = (catProd?.images && catProd.images[0]) || catProd?.preview_image || (products[0]?.images && products[0].images[0]) || '/logo.svg';
+              const catProd = products.find((p) => p.category_id === cat.id || (p.category_name && p.category_name.toLowerCase().includes(cat.name.toLowerCase())) || p.name.toLowerCase().includes(cat.name.toLowerCase()));
+              const catImage = cat.image_url || (catProd?.images && catProd.images[0]) || catProd?.preview_image || (products[0]?.images && products[0].images[0]) || '/logo.svg';
               const isSelected = selectedCategoryId === cat.id;
 
               return (
@@ -316,7 +298,7 @@ export default function CataloguePage() {
             <span className="text-amber-400">✦</span> New Launch Collections
           </h2>
           <button
-            onClick={() => setSelectedCategoryId('all')}
+            onClick={() => { setSelectedCategoryId('all'); setSearchQuery(''); }}
             className="text-xs font-bold text-white/90 hover:text-white flex items-center gap-1 bg-white/10 hover:bg-white/20 px-3 py-1 rounded-xl transition-all"
           >
             <span>View All</span>
