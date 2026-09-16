@@ -285,12 +285,16 @@ export default function AdminDashboardPage() {
         body: JSON.stringify({ id, name: editingCatName.trim(), image_url: editingCatImageUrl.trim() || null }),
       });
       const data = await res.json();
+      if (!res.ok) {
+        showToast(data.message || 'Error updating category');
+        return;
+      }
       if (data.categories) {
         setCategories(data.categories);
       } else {
         await fetchCategories();
       }
-      showToast('Category updated!');
+      showToast('Category updated successfully!');
       setEditingCatId(null);
       setEditingCatName('');
       setEditingCatImageUrl('');
@@ -618,7 +622,56 @@ export default function AdminDashboardPage() {
   };
 
   const handleOpenEditModal = (prod: Product) => {
-    setEditingProduct(prod);
+    // Extract Top, Dupatta, Bottom fabrics from description or prod attributes
+    const topF =
+      prod.top_fabric ||
+      prod.description?.match(/top\s*:\s*([^|\n]+)/i)?.[1]?.trim() ||
+      '';
+
+    const dupF =
+      prod.dupatta_fabric ||
+      prod.description?.match(/dupatta\s*:\s*([^|\n]+)/i)?.[1]?.trim() ||
+      '';
+
+    const botF =
+      prod.bottom_fabric ||
+      prod.description?.match(/bottom\s*:\s*([^|\n]+)/i)?.[1]?.trim() ||
+      '';
+
+    // Extract Brand Name and Volume Tag
+    const brandName =
+      prod.brand_name ||
+      prod.name.split(/[\s-(]/)[0]?.toUpperCase() ||
+      '';
+
+    const volumeTag =
+      prod.volume ||
+      prod.name.match(/vol[\s.-]*\d+/i)?.[0] ||
+      prod.name.match(/\(vol[^\)]+\)/i)?.[0]?.replace(/[\(\)]/g, '') ||
+      '';
+
+    // Clean description by removing fabric specs header
+    let cleanDesc = prod.description || '';
+    cleanDesc = cleanDesc
+      .replace(/Top\s*:\s*[^|\n]+\|\s*Dupatta\s*:\s*[^|\n]+/gi, '')
+      .replace(/Bottom\s*:\s*[^|\n]+/gi, '')
+      .replace(/^\s*[\r\n]+/, '')
+      .trim();
+
+    const prodImages = (prod.images && Array.isArray(prod.images) && prod.images.length > 0)
+      ? prod.images
+      : (prod.preview_image ? [prod.preview_image] : []);
+
+    setEditingProduct({
+      ...prod,
+      brand_name: brandName,
+      volume: volumeTag,
+      top_fabric: topF,
+      dupatta_fabric: dupF,
+      bottom_fabric: botF,
+      description: cleanDesc,
+      images: prodImages,
+    });
     setFormPassword('');
     setFormConfirmPassword('');
     setFormError('');
@@ -654,10 +707,15 @@ export default function AdminDashboardPage() {
       const dupF = editingProduct.dupatta_fabric?.trim() || 'Cotton';
       const botF = editingProduct.bottom_fabric?.trim() || 'Cotton';
 
-      if (!/top\s*:/i.test(fullDesc)) {
-        const fabricHeader = `Top : ${topF} | Dupatta : ${dupF}\nBottom : ${botF}`;
-        fullDesc = fullDesc ? `${fabricHeader}\n\n${fullDesc}` : fabricHeader;
-      }
+      // Always clean any existing fabric header from description before prepending updated header
+      const cleanedDesc = fullDesc
+        .replace(/Top\s*:\s*[^|\n]+\|\s*Dupatta\s*:\s*[^|\n]+/gi, '')
+        .replace(/Bottom\s*:\s*[^|\n]+/gi, '')
+        .replace(/^\s*[\r\n]+/, '')
+        .trim();
+
+      const fabricHeader = `Top : ${topF} | Dupatta : ${dupF}\nBottom : ${botF}`;
+      fullDesc = cleanedDesc ? `${fabricHeader}\n\n${cleanedDesc}` : fabricHeader;
 
       const res = await fetch('/api/admin/products', {
         method: 'POST',
@@ -1185,7 +1243,9 @@ export default function AdminDashboardPage() {
                   const count = products.filter((p) => p.category_id === cat.id).length;
                   const isEditing = editingCatId === cat.id;
                   const catProd = products.find((p) => p.category_id === cat.id || (p.category_name && p.category_name.toLowerCase().includes(cat.name.toLowerCase())));
-                  const displayImage = cat.image_url || (catProd?.images && catProd.images[0]) || catProd?.preview_image || (products[0]?.images && products[0].images[0]) || '/logo.svg';
+                  const displayImage = (isEditing && editingCatImageUrl)
+                    ? editingCatImageUrl
+                    : (cat.image_url || (catProd?.images && catProd.images[0]) || catProd?.preview_image || (products[0]?.images && products[0].images[0]) || '/logo.svg');
 
                   return (
                     <div key={cat.id} className="p-4 grid grid-cols-12 gap-4 items-center text-xs font-semibold">

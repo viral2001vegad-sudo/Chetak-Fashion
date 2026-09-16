@@ -26,6 +26,37 @@ export async function GET() {
   }
 }
 
+async function saveCategoryWithAutoColumn(supabase: any, catPayload: Record<string, any>, id?: string) {
+  let res: any;
+  if (id && isUUID(id)) {
+    res = await supabase.from('categories').update(catPayload).eq('id', id).select().single();
+  } else {
+    res = await supabase.from('categories').insert(catPayload).select().single();
+  }
+
+  if (res.error && (res.error.code === '42703' || res.error.message?.includes('image_url') || res.error.message?.includes('schema cache'))) {
+    try {
+      await supabase.rpc('exec_sql', { sql: 'ALTER TABLE public.categories ADD COLUMN IF NOT EXISTS image_url text;' });
+      if (id && isUUID(id)) {
+        res = await supabase.from('categories').update(catPayload).eq('id', id).select().single();
+      } else {
+        res = await supabase.from('categories').insert(catPayload).select().single();
+      }
+    } catch (_) {
+      const fallbackPayload = { ...catPayload };
+      delete fallbackPayload.image_url;
+      if (id && isUUID(id)) {
+        res = await supabase.from('categories').update(fallbackPayload).eq('id', id).select().single();
+      } else {
+        res = await supabase.from('categories').insert(fallbackPayload).select().single();
+      }
+    }
+  }
+
+  if (res.error) throw res.error;
+  return res.data;
+}
+
 // Admin POST - add or update category directly in Supabase DB
 export async function POST(req: NextRequest) {
   let categoryName = 'New Category';
@@ -54,32 +85,17 @@ export async function POST(req: NextRequest) {
         await deleteStorageFiles(supabase, [existingCat.image_url]);
       }
 
-      // Update existing category in Supabase
-      const { data, error } = await supabase
-        .from('categories')
-        .update(catPayload)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
+      const data = await saveCategoryWithAutoColumn(supabase, catPayload, id);
       const categories = await getAllCategories(supabase);
       return NextResponse.json({ category: data, categories, message: 'Category updated in Supabase' });
     } else {
-      // Insert new category in Supabase
-      const { data, error } = await supabase
-        .from('categories')
-        .insert(catPayload)
-        .select()
-        .single();
-
-      if (error) throw error;
+      const data = await saveCategoryWithAutoColumn(supabase, catPayload);
       const categories = await getAllCategories(supabase);
       return NextResponse.json({ category: data, categories, message: 'Category added to Supabase' });
     }
   } catch (err: any) {
     console.error('Category save error:', err);
-    return NextResponse.json({ message: 'Category save error' }, { status: 500 });
+    return NextResponse.json({ message: err?.message || 'Category save error' }, { status: 500 });
   }
 }
 

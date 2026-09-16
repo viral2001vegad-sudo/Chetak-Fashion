@@ -36,6 +36,7 @@ drop table if exists public.store_settings cascade;
 create table public.categories (
   id uuid primary key default gen_random_uuid(),
   name text not null,
+  image_url text,
   sort_order int default 0,
   created_at timestamptz default now()
 );
