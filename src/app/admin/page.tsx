@@ -147,11 +147,10 @@ export default function AdminDashboardPage() {
         fetchCategories();
         fetchBanners();
       } catch (err) {
-        setIsAuthenticated(true);
+        localStorage.removeItem('chetak_admin_token');
+        setIsAuthenticated(false);
         setIsCheckingAuth(false);
-        fetchProducts();
-        fetchCategories();
-        fetchBanners();
+        router.replace('/admin/login');
       }
     };
 
@@ -186,13 +185,13 @@ export default function AdminDashboardPage() {
     try {
       const res = await fetch('/api/admin/products');
       const data = await res.json();
-      if (data.products) {
+      if (Array.isArray(data.products)) {
         setProducts(data.products);
       } else {
-        setProducts(MOCK_PRODUCTS);
+        setProducts([]);
       }
     } catch (err) {
-      setProducts(MOCK_PRODUCTS);
+      setProducts([]);
     } finally {
       setIsLoading(false);
     }
@@ -228,9 +227,11 @@ export default function AdminDashboardPage() {
       const data = await res.json();
       if (data.categories) {
         setCategories(data.categories);
-        showToast(`Category "${nameToAdd}" created!`);
-        setNewCatName('');
+      } else {
+        await fetchCategories();
       }
+      showToast(`Category "${nameToAdd}" created!`);
+      setNewCatName('');
     } catch (err) {
       showToast('Error adding category');
     } finally {
@@ -249,9 +250,11 @@ export default function AdminDashboardPage() {
       const data = await res.json();
       if (data.categories) {
         setCategories(data.categories);
-        showToast('Category updated!');
-        setEditingCatId(null);
+      } else {
+        await fetchCategories();
       }
+      showToast('Category updated!');
+      setEditingCatId(null);
     } catch (err) {
       showToast('Error updating category');
     }
@@ -263,8 +266,10 @@ export default function AdminDashboardPage() {
       const data = await res.json();
       if (data.categories) {
         setCategories(data.categories);
-        showToast('Category deleted!');
+      } else {
+        await fetchCategories();
       }
+      showToast('Category deleted!');
     } catch (err) {
       showToast('Error deleting category');
     }
@@ -534,8 +539,13 @@ export default function AdminDashboardPage() {
   const handleDeleteProduct = async () => {
     if (!deleteTargetId) return;
     try {
-      await fetch(`/api/admin/products?id=${deleteTargetId}`, { method: 'DELETE' });
-      setProducts((prev) => prev.filter((p) => p.id !== deleteTargetId));
+      const res = await fetch(`/api/admin/products?id=${deleteTargetId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.products) {
+        setProducts(data.products);
+      } else {
+        await fetchProducts();
+      }
       showToast('Product deleted permanently');
       setDeleteTargetId(null);
     } catch (err) {
@@ -606,6 +616,8 @@ export default function AdminDashboardPage() {
       const data = await res.json();
       if (data.products) {
         setProducts(data.products);
+      } else {
+        await fetchProducts();
       }
       showToast(editingProduct.id ? 'Product updated successfully!' : 'New product created!');
       setIsModalOpen(false);

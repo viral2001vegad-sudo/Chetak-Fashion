@@ -48,11 +48,6 @@ export async function POST(
       targetProduct = data as Product;
     }
 
-    // Fallback to mock data lookup if database record not found or unconfigured
-    if (!targetProduct) {
-      targetProduct = MOCK_PRODUCTS.find(p => p.id === productId);
-    }
-
     if (!targetProduct) {
       return NextResponse.json(
         { message: 'Incorrect password' }, // Generic message prevents user enumeration

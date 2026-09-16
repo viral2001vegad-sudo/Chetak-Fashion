@@ -20,7 +20,7 @@ export async function GET(
       .select('*')
       .order('sort_order', { ascending: true });
 
-    const categoriesList = (dbCategories && dbCategories.length > 0) ? dbCategories : MOCK_CATEGORIES;
+    const categoriesList = Array.isArray(dbCategories) ? dbCategories : [];
     const catMap: Record<string, string> = {};
     categoriesList.forEach(c => { catMap[c.id] = c.name; });
 
@@ -38,8 +38,6 @@ export async function GET(
         ...dbProduct,
         category_name: dbProduct.category_id ? (catMap[dbProduct.category_id] || 'General') : 'General'
       };
-    } else {
-      targetProduct = MOCK_PRODUCTS.find(p => p.id === productId);
     }
 
     if (!targetProduct) {

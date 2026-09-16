@@ -36,7 +36,19 @@ export async function verifyOrRegisterDevice(
       .limit(1);
 
     if (selectErr) {
-      console.warn('admin_device_lock query error (creating table if needed):', selectErr);
+      console.warn('admin_device_lock query error:', selectErr.message || selectErr);
+      // If table does not exist in Supabase schema cache yet, gracefully authorize device until table is created
+      const errStr = (selectErr.message || '').toLowerCase();
+      if (
+        selectErr.code === 'PGRST205' ||
+        selectErr.code === '42P01' ||
+        errStr.includes('schema cache') ||
+        errStr.includes('does not exist') ||
+        errStr.includes('not found')
+      ) {
+        console.warn('⚠️ Table public.admin_device_lock does not exist in Supabase yet. Please run SUPABASE_SETUP.md in Supabase SQL Editor.');
+        return { authorized: true };
+      }
     }
 
     const activeLock = locks && locks.length > 0 ? locks[0] : null;

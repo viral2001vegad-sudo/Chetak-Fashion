@@ -6,30 +6,28 @@ export const dynamic = 'force-dynamic';
 
 const isUUID = (str?: string) => str ? /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str) : false;
 
+async function getAllProducts(supabase: any) {
+  const { data: dbCats } = await supabase.from('categories').select('*');
+  const catMap: Record<string, string> = {};
+  (dbCats || []).forEach((c: any) => { catMap[c.id] = c.name; });
+
+  const { data } = await supabase
+    .from('products')
+    .select('*')
+    .order('sort_order', { ascending: true });
+
+  return (data || []).map((p: any) => ({
+    ...p,
+    category_name: p.category_id ? (catMap[p.category_id] || 'General') : 'General'
+  }));
+}
+
 // Admin GET - returns all products directly from Supabase DB
 export async function GET() {
   try {
     const supabase = createAdminClient();
-
-    // Fetch categories for category name mapping
-    const { data: dbCats } = await supabase.from('categories').select('*');
-    const catMap: Record<string, string> = {};
-    (dbCats || []).forEach(c => { catMap[c.id] = c.name; });
-
-    const { data, error } = await supabase
-      .from('products')
-      .select('*')
-      .order('sort_order', { ascending: true });
-
-    if (!error && Array.isArray(data)) {
-      const mapped = data.map(p => ({
-        ...p,
-        category_name: p.category_id ? (catMap[p.category_id] || 'General') : 'General'
-      }));
-      return NextResponse.json({ products: mapped, source: 'supabase' });
-    }
-
-    return NextResponse.json({ products: [], source: 'supabase' });
+    const products = await getAllProducts(supabase);
+    return NextResponse.json({ products, source: 'supabase' });
   } catch (err) {
     return NextResponse.json({ products: [], source: 'error' });
   }
@@ -81,7 +79,8 @@ export async function POST(req: NextRequest) {
         .single();
 
       if (error) throw error;
-      return NextResponse.json({ product: data, message: 'Product updated successfully' });
+      const products = await getAllProducts(supabase);
+      return NextResponse.json({ product: data, products, message: 'Product updated successfully' });
     } else {
       // Insert new product
       const { data, error } = await supabase
@@ -91,7 +90,8 @@ export async function POST(req: NextRequest) {
         .single();
 
       if (error) throw error;
-      return NextResponse.json({ product: data, message: 'Product created successfully' });
+      const products = await getAllProducts(supabase);
+      return NextResponse.json({ product: data, products, message: 'Product created successfully' });
     }
 
   } catch (err: any) {
@@ -113,7 +113,8 @@ export async function DELETE(req: NextRequest) {
     const supabase = createAdminClient();
     await supabase.from('products').delete().eq('id', id);
 
-    return NextResponse.json({ success: true, message: 'Product deleted successfully' });
+    const products = await getAllProducts(supabase);
+    return NextResponse.json({ success: true, products, message: 'Product deleted successfully' });
   } catch (err) {
     return NextResponse.json({ message: 'Delete error' }, { status: 500 });
   }

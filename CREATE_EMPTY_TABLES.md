@@ -1,18 +1,47 @@
+# Supabase SQL Editor - Empty Tables Creation Script
+
+Supabase SQL Editor mein copy aur paste karke run karne ke liye yeh complete Markdown / SQL guide hai. 
+Is script se saare **Empty Tables (0 products, 0 categories, 0 banners)** create honge aur Admin login setup ho jayega.
+
+---
+
+## 📌 Instructions / Kaise Use Karein:
+
+1. Apne **[Supabase Dashboard](https://supabase.com/dashboard)** par jayein.
+2. Apna Project select karein (`shafiioaxfvtjfahumvv`).
+3. Left side bar me **SQL Editor** (`>_` icon) par click karein.
+4. **+ New Query** par click karein.
+5. Niche diya gaya poora **SQL Script** copy karke paste karein aur **RUN** button dabayein.
+
+---
+
+## 💻 SQL Query (Empty Tables Creation Script)
+
+```sql
 -- =========================================================
--- CHETAK FASHION SUPABASE COMPLETE DATABASE SETUP & SEED SQL
--- Paste this ENTIRE script into Supabase SQL Editor and click RUN
+-- CHETAK FASHION - CREATE EMPTY TABLES & SETUP DATABASE
 -- =========================================================
 
--- 1. CATEGORIES TABLE
-create table if not exists public.categories (
+-- 0. Purane Existing Tables Drop karein (Naya Fresh Setup)
+drop table if exists public.admin_device_lock cascade;
+drop table if exists public.admin_users cascade;
+drop table if exists public.enquiries cascade;
+drop table if exists public.page_views cascade;
+drop table if exists public.banners cascade;
+drop table if exists public.products cascade;
+drop table if exists public.categories cascade;
+drop table if exists public.store_settings cascade;
+
+-- 1. CATEGORIES TABLE (Empty)
+create table public.categories (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   sort_order int default 0,
   created_at timestamptz default now()
 );
 
--- 2. PRODUCTS TABLE
-create table if not exists public.products (
+-- 2. PRODUCTS TABLE (Empty)
+create table public.products (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   description text,
@@ -33,8 +62,8 @@ create table if not exists public.products (
   updated_at timestamptz default now()
 );
 
--- 3. BANNERS TABLE
-create table if not exists public.banners (
+-- 3. BANNERS TABLE (Empty)
+create table public.banners (
   id text primary key,
   title text not null,
   subtitle text,
@@ -47,39 +76,54 @@ create table if not exists public.banners (
 );
 
 -- 4. STORE SETTINGS TABLE
-create table if not exists public.store_settings (
+create table public.store_settings (
   id text primary key default 'main',
   config jsonb not null,
   updated_at timestamptz default now()
 );
 
 -- 5. ADMIN USERS TABLE
-create table if not exists public.admin_users (
-  id uuid primary key references auth.users(id) on delete cascade,
+create table public.admin_users (
+  id uuid primary key default gen_random_uuid(),
+  email text not null unique,
+  password_hash text not null,
   business_name text default 'Chetak Fashion',
-  created_at timestamptz default now()
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
 );
 
 -- 6. PAGE VIEWS ANALYTICS TABLE
-create table if not exists public.page_views (
+create table public.page_views (
   id uuid primary key default gen_random_uuid(),
   page text not null,
   visited_at timestamptz default now()
 );
 
 -- 7. ENQUIRIES ANALYTICS TABLE
-create table if not exists public.enquiries (
+create table public.enquiries (
   id uuid primary key default gen_random_uuid(),
   product_ids uuid[] not null,
   sent_at timestamptz default now()
 );
 
--- 8. SUPABASE STORAGE BUCKET FOR PRODUCT IMAGES
+-- 8. ADMIN DEVICE LOCK TABLE
+create table public.admin_device_lock (
+  id uuid primary key default gen_random_uuid(),
+  admin_user_id text not null unique,
+  device_id text not null,
+  is_active boolean not null default true,
+  registered_at timestamptz not null default now(),
+  last_seen_at timestamptz not null default now(),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- 9. SUPABASE STORAGE BUCKET FOR IMAGES
 insert into storage.buckets (id, name, public)
 values ('product-images', 'product-images', true)
 on conflict (id) do nothing;
 
--- ROW LEVEL SECURITY (RLS) POLICIES
+-- 10. ENABLE ROW LEVEL SECURITY (RLS)
 alter table public.categories enable row level security;
 alter table public.products enable row level security;
 alter table public.banners enable row level security;
@@ -87,20 +131,9 @@ alter table public.store_settings enable row level security;
 alter table public.admin_users enable row level security;
 alter table public.page_views enable row level security;
 alter table public.enquiries enable row level security;
+alter table public.admin_device_lock enable row level security;
 
--- DROP OLD POLICIES IF RE-RUNNING
-drop policy if exists "Allow public read active categories" on public.categories;
-drop policy if exists "Allow admin full manage categories" on public.categories;
-drop policy if exists "Allow public read visible products" on public.products;
-drop policy if exists "Allow admin full access to products" on public.products;
-drop policy if exists "Allow public read banners" on public.banners;
-drop policy if exists "Allow admin full access to banners" on public.banners;
-drop policy if exists "Allow public read store_settings" on public.store_settings;
-drop policy if exists "Allow admin full access to store_settings" on public.store_settings;
-drop policy if exists "Allow public insert page_views" on public.page_views;
-drop policy if exists "Allow public insert enquiries" on public.enquiries;
-
--- CREATE FRESH POLICIES
+-- 11. POLICIES SETUP
 create policy "Allow public read active categories" on public.categories for select using (true);
 create policy "Allow admin full manage categories" on public.categories for all using (true);
 
@@ -113,77 +146,24 @@ create policy "Allow admin full access to banners" on public.banners for all usi
 create policy "Allow public read store_settings" on public.store_settings for select using (true);
 create policy "Allow admin full access to store_settings" on public.store_settings for all using (true);
 
+create policy "Allow admin full manage admin_users" on public.admin_users for all using (true);
+
 create policy "Allow public insert page_views" on public.page_views for insert with check (true);
 create policy "Allow public insert enquiries" on public.enquiries for insert with check (true);
 
--- 9. INSERT DEFAULT CATEGORIES
-insert into public.categories (id, name, sort_order)
-values 
-  ('11111111-1111-1111-1111-111111111111', 'Fancy Printed Suits', 1),
-  ('22222222-2222-2222-2222-222222222222', 'Cotton Suit Collections', 2)
-on conflict (id) do update set name = excluded.name;
+create policy "Allow service role full manage admin_device_lock" on public.admin_device_lock for all using (true);
 
--- 10. INSERT THE 2 CHETAK FASHION PRODUCTS
-insert into public.products (
-  id,
-  name,
-  description,
-  price,
-  price_visible,
-  category_id,
-  images,
-  in_stock,
-  is_hidden,
-  is_featured,
-  is_locked,
-  sort_order
-)
+-- 12. DEFAULT ADMIN CREDENTIALS (Email: admin@chetakfashion.com / Password: admin123)
+insert into public.admin_users (id, email, password_hash, business_name)
 values (
-  '33333333-3333-3333-3333-333333333333',
-  '👉 GHOOMAR 👈 Vol 07 Rayon Cotton Suit Material',
-  '👚 Top: RAYON COTTON PRINT Kat Dana , Dhagatikali combo WORK (2.50MTR)
-👖 Bottom: RAYON COTTON (2.50MTR)
-🧣 Dupatta: RAYON COTTON PRINT (2.25 MTR)
-📦 Packing: 8 Pcs Photo + Pauch + Bag (Billing Plus GST)
-
-CHETAK FASHION SURAT
-(Mfg. of Exclusive Cotton Dress Material Fabric)',
-  535,
-  true,
-  '11111111-1111-1111-1111-111111111111',
-  array['https://shafiioaxfvtjfahumvv.supabase.co/storage/v1/object/public/product-images/products/1789382420896-93dg3y.jpeg'],
-  true,
-  false,
-  true,
-  false,
-  1
-),
-(
-  '44444444-4444-4444-4444-444444444444',
-  'Chetak Soft Cotton Swarovski Diamond 💎 Suit Set',
-  '👗 Top: Print Soft Cotton Best Quality Swarovski Diamond 💎 & Plain (2.50MTR)
-👖 Bottom: Soft Cotton (2.50MTR)
-🧣 Dupatta: Cotton Print (2.00 MTR)
-📦 Packing: 08 Pcs Pauch + Bag + Catalog (Billing Plus GST)
-
-CHETAK FASHION SURAT
-(Mfg. of Exclusive Cotton Dress Material Fabric)',
-  275,
-  true,
-  '22222222-2222-2222-2222-222222222222',
-  array['https://shafiioaxfvtjfahumvv.supabase.co/storage/v1/object/public/product-images/products/1789382128933-t3wqhx.jpeg'],
-  true,
-  false,
-  true,
-  false,
-  2
+  '00000000-0000-0000-0000-000000000001',
+  'admin@chetakfashion.com',
+  '$2a$10$SIB3rwV48dmQeruyj7JUUekv3jbZPox3IBR6tKO71klDQFgiDZOF6',
+  'Chetak Fashion'
 )
-on conflict (id) do update set 
-  name = excluded.name,
-  description = excluded.description,
-  price = excluded.price;
+on conflict (email) do update set password_hash = excluded.password_hash;
 
--- 11. INSERT DEFAULT STORE SETTINGS
+-- 13. DEFAULT STORE SETTINGS
 insert into public.store_settings (id, config)
 values (
   'main',
@@ -209,3 +189,10 @@ values (
   }'::jsonb
 )
 on conflict (id) do nothing;
+```
+
+---
+
+## 🔑 Default Login Credentials:
+- **Admin Email**: `admin@chetakfashion.com`
+- **Admin Password**: `admin123`

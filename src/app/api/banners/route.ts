@@ -43,12 +43,11 @@ export async function GET() {
     if (!error && Array.isArray(data)) {
       return NextResponse.json({ banners: data }, { status: 200 });
     }
+    return NextResponse.json({ banners: [] }, { status: 200 });
   } catch (err) {
     console.warn('Error fetching banners from Supabase DB:', err);
+    return NextResponse.json({ banners: [] }, { status: 200 });
   }
-
-  const fallbackBanners = getStoredBanners();
-  return NextResponse.json({ banners: fallbackBanners }, { status: 200 });
 }
 
 export async function POST(req: NextRequest) {

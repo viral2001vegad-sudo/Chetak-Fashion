@@ -30,12 +30,12 @@ export default function CataloguePage() {
       // Fetch Products
       const res = await fetch(`/api/products?t=${Date.now()}`, { cache: 'no-store' });
       const data = await res.json();
-      if (Array.isArray(data.products) && data.products.length > 0) {
+      if (Array.isArray(data.products)) {
         setProducts(data.products);
-        setCategories(Array.isArray(data.categories) && data.categories.length > 0 ? data.categories : MOCK_CATEGORIES);
+        setCategories(Array.isArray(data.categories) ? data.categories : []);
       } else {
-        setProducts(MOCK_PRODUCTS);
-        setCategories(MOCK_CATEGORIES);
+        setProducts([]);
+        setCategories([]);
       }
 
       // Fetch Hero Banners
@@ -45,8 +45,8 @@ export default function CataloguePage() {
         setBanners(bData.banners.filter((b: Banner) => b.is_active));
       }
     } catch (err) {
-      setProducts(MOCK_PRODUCTS);
-      setCategories(MOCK_CATEGORIES);
+      setProducts([]);
+      setCategories([]);
     } finally {
       setIsLoading(false);
     }

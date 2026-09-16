@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Category } from '@/types';
+import { getDeviceId } from '@/lib/device/deviceId';
 import { BUSINESS_CONFIG } from '@/config/business';
 import { ArrowLeft, Plus, Edit2, Trash2, Save, X, FolderTree, CheckCircle, Loader2, AlertCircle } from 'lucide-react';
 
@@ -30,13 +31,36 @@ export default function AdminCategoriesPage() {
   };
 
   useEffect(() => {
-    const token = localStorage.getItem('chetak_admin_token');
-    if (!token) {
-      router.push('/admin/login');
-      return;
-    }
+    const checkAuth = async () => {
+      const token = localStorage.getItem('chetak_admin_token');
+      if (!token) {
+        router.push('/admin/login');
+        return;
+      }
 
-    fetchCategories();
+      try {
+        const deviceId = getDeviceId();
+        const verifyRes = await fetch('/api/admin/device/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token, deviceId }),
+        });
+
+        const verifyData = await verifyRes.json();
+        if (!verifyRes.ok || !verifyData.authorized) {
+          localStorage.removeItem('chetak_admin_token');
+          router.push('/admin/login');
+          return;
+        }
+
+        fetchCategories();
+      } catch (err) {
+        localStorage.removeItem('chetak_admin_token');
+        router.push('/admin/login');
+      }
+    };
+
+    checkAuth();
   }, [router]);
 
   const fetchCategories = async () => {
@@ -59,14 +83,6 @@ export default function AdminCategoriesPage() {
     const nameToAdd = newCatName.trim();
     if (!nameToAdd) return;
 
-    // Optimistic UI addition (0ms delay)
-    const tempCat: Category = {
-      id: `cat-${Date.now()}`,
-      name: nameToAdd,
-      sort_order: categories.length + 1,
-    };
-
-    setCategories((prev) => [...prev, tempCat]);
     setNewCatName('');
     showToast('Category added successfully');
     setIsSaving(true);
@@ -79,11 +95,10 @@ export default function AdminCategoriesPage() {
       });
 
       const data = await res.json();
-      if (data.category) {
-        // Replace temp category with server category if returned
-        setCategories((prev) =>
-          prev.map((c) => (c.id === tempCat.id ? data.category : c))
-        );
+      if (data.categories) {
+        setCategories(data.categories);
+      } else {
+        await fetchCategories();
       }
     } catch (err) {
       console.error('Category save error:', err);
@@ -96,20 +111,22 @@ export default function AdminCategoriesPage() {
     const nameToSave = editingCatName.trim();
     if (!nameToSave) return;
 
-    // Optimistic UI update
-    setCategories((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, name: nameToSave } : c))
-    );
     setEditingCatId(null);
     showToast('Category updated successfully');
     setIsSaving(true);
 
     try {
-      await fetch('/api/admin/categories', {
+      const res = await fetch('/api/admin/categories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, name: nameToSave }),
       });
+      const data = await res.json();
+      if (data.categories) {
+        setCategories(data.categories);
+      } else {
+        await fetchCategories();
+      }
     } catch (err) {
       console.error('Edit save error:', err);
     } finally {
@@ -121,14 +138,19 @@ export default function AdminCategoriesPage() {
     if (!deleteTargetId) return;
 
     const targetId = deleteTargetId;
-    setCategories((prev) => prev.filter((c) => c.id !== targetId));
-    showToast('Category deleted successfully');
     setDeleteTargetId(null);
 
     try {
-      await fetch(`/api/admin/categories?id=${targetId}`, {
+      const res = await fetch(`/api/admin/categories?id=${targetId}`, {
         method: 'DELETE',
       });
+      const data = await res.json();
+      if (data.categories) {
+        setCategories(data.categories);
+      } else {
+        await fetchCategories();
+      }
+      showToast('Category deleted successfully');
     } catch (err) {
       console.error('Delete category error:', err);
     }

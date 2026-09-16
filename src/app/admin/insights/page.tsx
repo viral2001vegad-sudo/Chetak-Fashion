@@ -72,6 +72,8 @@ export default function AdminInsightsPage() {
         setStats(data);
       } catch (err) {
         console.error('Fetch insights error:', err);
+        localStorage.removeItem('chetak_admin_token');
+        router.push('/admin/login');
       } finally {
         setIsLoading(false);
       }

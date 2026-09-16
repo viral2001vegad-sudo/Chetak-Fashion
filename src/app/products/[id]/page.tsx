@@ -70,8 +70,6 @@ export default function ProductDetailPage() {
       let currentProd: Product | PublicProduct | null = null;
       if (data.product) {
         currentProd = data.product;
-      } else {
-        currentProd = MOCK_PRODUCTS.find((p) => p.id === productId) || null;
       }
 
       setProduct(currentProd);
@@ -93,15 +91,14 @@ export default function ProductDetailPage() {
       // Fetch all products for related catalogue row
       const allRes = await fetch('/api/products');
       const allData = await allRes.json();
-      if (allData.products) {
+      if (Array.isArray(allData.products)) {
         setRelatedProducts(allData.products.filter((p: any) => p.id !== productId).slice(0, 4));
       } else {
-        setRelatedProducts(MOCK_PRODUCTS.filter((p) => p.id !== productId).slice(0, 4));
+        setRelatedProducts([]);
       }
     } catch (err) {
-      const mockFound = MOCK_PRODUCTS.find((p) => p.id === productId) || null;
-      setProduct(mockFound);
-      setRelatedProducts(MOCK_PRODUCTS.filter((p) => p.id !== productId).slice(0, 4));
+      setProduct(null);
+      setRelatedProducts([]);
     } finally {
       setIsLoading(false);
     }
