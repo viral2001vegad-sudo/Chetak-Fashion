@@ -17,7 +17,7 @@ export async function GET() {
       .select('*')
       .order('sort_order', { ascending: true });
 
-    const categoriesList = Array.isArray(dbCategories) && dbCategories.length > 0 ? dbCategories : MOCK_CATEGORIES;
+    const categoriesList = Array.isArray(dbCategories) ? dbCategories : MOCK_CATEGORIES;
     const catMap: Record<string, string> = {};
     categoriesList.forEach(c => { catMap[c.id] = c.name; });
 
@@ -30,7 +30,7 @@ export async function GET() {
 
     let finalProducts: Product[] = [];
 
-    if (!prodError && Array.isArray(dbProducts) && dbProducts.length > 0) {
+    if (!prodError && Array.isArray(dbProducts)) {
       finalProducts = dbProducts.map(p => ({
         ...p,
         category_name: p.category_id ? (catMap[p.category_id] || 'General') : 'General'
