@@ -245,9 +245,9 @@ export default function CataloguePage() {
               <div className={`relative w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden p-1 bg-[#FDF4F5] border-2 transition-all ${
                 selectedCategoryId === 'all' ? 'border-[#701A24] ring-2 ring-rose-500/20 shadow-md' : 'border-rose-100'
               }`}>
-                <div className="relative w-full h-full rounded-xl overflow-hidden bg-gray-100">
+                <div className="relative w-full h-full rounded-xl overflow-hidden bg-[#701A24]/5">
                   <Image
-                    src="https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=400&auto=format&fit=crop&q=80"
+                    src={(products[0]?.images && products[0].images[0]) || products[0]?.preview_image || '/logo.svg'}
                     alt="New Launch"
                     fill
                     className="object-cover group-hover:scale-110 transition-transform duration-500"
@@ -262,19 +262,10 @@ export default function CataloguePage() {
               </span>
             </button>
 
-            {/* Dynamic DB Categories / Fallback Tiles */}
-            {(categories.length > 0 ? categories : [
-              { id: 'cat-cotton', name: 'Cotton' },
-              { id: 'cat-rayon', name: 'Rayon' },
-              { id: 'cat-jaam', name: 'Jaam Cotton' },
-              { id: 'cat-fancy', name: 'Fancy Suits' }
-            ]).map((cat, idx) => {
-              const sampleImages = [
-                'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=400',
-                'https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?w=400',
-                'https://images.unsplash.com/photo-1609357605129-26f69add5d6e?w=400',
-                'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=400'
-              ];
+            {/* Dynamic DB Categories directly from Supabase */}
+            {categories.map((cat) => {
+              const catProd = products.find((p) => p.category_id === cat.id);
+              const catImage = (catProd?.images && catProd.images[0]) || catProd?.preview_image || (products[0]?.images && products[0].images[0]) || '/logo.svg';
               const isSelected = selectedCategoryId === cat.id;
 
               return (
@@ -288,9 +279,9 @@ export default function CataloguePage() {
                   <div className={`relative w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden p-1 bg-[#FDF4F5] border-2 transition-all ${
                     isSelected ? 'border-[#701A24] ring-2 ring-rose-500/20 shadow-md' : 'border-rose-100'
                   }`}>
-                    <div className="relative w-full h-full rounded-xl overflow-hidden bg-gray-100">
+                    <div className="relative w-full h-full rounded-xl overflow-hidden bg-[#701A24]/5">
                       <Image
-                        src={sampleImages[idx % sampleImages.length]}
+                        src={catImage}
                         alt={cat.name}
                         fill
                         className="object-cover group-hover:scale-110 transition-transform duration-500"
