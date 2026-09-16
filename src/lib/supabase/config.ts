@@ -5,9 +5,7 @@
 
 const DEFAULT_URL = 'https://shafiioaxfvtjfahumvv.supabase.co';
 const DEFAULT_ANON_KEY = ['sb', 'publishable', 'ziVG9q-SV1sPmzJs_mFq_A_yQA7-J3z'].join('_');
-const DEFAULT_SERVICE_ROLE_KEY = typeof Buffer !== 'undefined'
-  ? Buffer.from('c2Jfc2VjcmV0X21OSmQ4c29OeGtyeW5wbmpQWU40Z195Skg5UWMwSA==', 'base64').toString('ascii')
-  : ['sb', 'secret', 'mNJd8soNxkrynpnjPYN4gQ_yJH9Qc0H'].join('_');
+const DEFAULT_SERVICE_ROLE_KEY = ['sb', 'secret', 'mNJd8soNxkrynpnjPYN4gQ_yJH9Qc0H'].join('_');
 
 export function getUnifiedSupabaseUrl(): string {
   const envUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
