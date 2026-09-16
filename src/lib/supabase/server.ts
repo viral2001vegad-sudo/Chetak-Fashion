@@ -1,7 +1,7 @@
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 
-const FALLBACK_URL = 'https://shafiioaxfvtjfahumvv.supabase.co';
-const FALLBACK_KEY = Buffer.from('c2Jfc2VjcmV0X21OSmQ4c29OeGtyeW5wbmpQWU40Z195Skg5UWMwSA==', 'base64').toString('ascii');
+const TARGET_URL = 'https://shafiioaxfvtjfahumvv.supabase.co';
+const TARGET_KEY = Buffer.from('c2Jfc2VjcmV0X21OSmQ4c29OeGtyeW5wbmpQWU40Z195Skg5UWMwSA==', 'base64').toString('ascii');
 
 export function getSupabaseUrl() {
   const envUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -14,7 +14,7 @@ export function getSupabaseUrl() {
   ) {
     return envUrl.trim();
   }
-  return FALLBACK_URL;
+  return TARGET_URL;
 }
 
 export function getSupabaseKey() {
@@ -40,7 +40,7 @@ export function getSupabaseKey() {
     return anonKey.trim();
   }
 
-  return FALLBACK_KEY;
+  return TARGET_KEY;
 }
 
 export function createAdminClient() {
