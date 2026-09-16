@@ -556,7 +556,11 @@ export default function AdminDashboardPage() {
   const handleOpenAddModal = () => {
     setEditingProduct({
       name: '',
+      brand_name: '',
       volume: '',
+      top_fabric: 'Cotton',
+      dupatta_fabric: 'Cotton',
+      bottom_fabric: 'Cotton',
       category_id: categories[0]?.id || 'cat-1',
       price: undefined,
       price_visible: true,
@@ -605,11 +609,23 @@ export default function AdminDashboardPage() {
     try {
       const sanitizedImages = (editingProduct.images || []).filter(img => img && img.trim().length > 0).slice(0, 2);
 
+      // Prepend fabric specs to description for seamless card & detail rendering
+      let fullDesc = editingProduct.description?.trim() || '';
+      const topF = editingProduct.top_fabric?.trim() || 'Cotton';
+      const dupF = editingProduct.dupatta_fabric?.trim() || 'Cotton';
+      const botF = editingProduct.bottom_fabric?.trim() || 'Cotton';
+
+      if (!/top\s*:/i.test(fullDesc)) {
+        const fabricHeader = `Top : ${topF} | Dupatta : ${dupF}\nBottom : ${botF}`;
+        fullDesc = fullDesc ? `${fabricHeader}\n\n${fullDesc}` : fabricHeader;
+      }
+
       const res = await fetch('/api/admin/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...editingProduct,
+          description: fullDesc,
           images: sanitizedImages,
           preview_image: sanitizedImages[0] || editingProduct.preview_image || '',
           password: formPassword || undefined,
@@ -1428,16 +1444,29 @@ export default function AdminDashboardPage() {
             </div>
 
             <form onSubmit={handleSaveProductForm} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">Product Title / Design Name *</label>
-                <input
-                  type="text"
-                  value={editingProduct.name || ''}
-                  onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value })}
-                  placeholder="e.g. GHOOMAR Vol 07 Rayon Cotton Suit Material"
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none"
-                  required
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Product Title / Design Name *</label>
+                  <input
+                    type="text"
+                    value={editingProduct.name || ''}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value })}
+                    placeholder="e.g. Gurbat Vol-06 Cotton Suit Set"
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Brand Tag (Card Badge)</label>
+                  <input
+                    type="text"
+                    value={editingProduct.brand_name || ''}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, brand_name: e.target.value })}
+                    placeholder="e.g. GURBAT, FIZA, SAHIBA, CHERRY"
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -1484,13 +1513,49 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
 
+              {/* Fabric Specs Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Top Fabric</label>
+                  <input
+                    type="text"
+                    value={editingProduct.top_fabric || ''}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, top_fabric: e.target.value })}
+                    placeholder="e.g. Cotton / Rayon"
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Dupatta Fabric</label>
+                  <input
+                    type="text"
+                    value={editingProduct.dupatta_fabric || ''}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, dupatta_fabric: e.target.value })}
+                    placeholder="e.g. Cotton / Nazneen"
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Bottom Fabric</label>
+                  <input
+                    type="text"
+                    value={editingProduct.bottom_fabric || ''}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, bottom_fabric: e.target.value })}
+                    placeholder="e.g. Cotton"
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none"
+                  />
+                </div>
+              </div>
+
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">Fabric & Design Details</label>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Additional Design & Cut Details</label>
                 <textarea
-                  rows={3}
+                  rows={2}
                   value={editingProduct.description || ''}
                   onChange={(e) => setEditingProduct({ ...editingProduct, description: e.target.value })}
-                  placeholder="Fabric type, dupatta material, work details, cut length..."
+                  placeholder="Additional work details, cut length, embroidery specs..."
                   className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none"
                 />
               </div>

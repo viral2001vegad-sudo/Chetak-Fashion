@@ -39,17 +39,38 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     product.preview_image ||
     'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=800&auto=format&fit=crop&q=80';
 
-  // Extract Vol from product.volume or title regex
+  // Extract Vol and Brand
+  const brandTag =
+    product.brand_name ||
+    product.name.split(/[\s-(]/)[0]?.toUpperCase() ||
+    'CHETAK';
+
   const volumeTag =
     product.volume ||
-    product.name.match(/vol\s*\d+/i)?.[0]?.toUpperCase() ||
-    'Vol Available';
+    product.name.match(/vol[\s.-]*\d+/i)?.[0]?.replace(/vol/i, 'Vol.') ||
+    'Vol. 01';
+
+  // Fabric specs parsing
+  const topFabric =
+    product.top_fabric ||
+    product.description?.match(/top\s*:\s*([^|\n]+)/i)?.[1]?.trim() ||
+    'Cotton';
+
+  const dupattaFabric =
+    product.dupatta_fabric ||
+    product.description?.match(/dupatta\s*:\s*([^|\n]+)/i)?.[1]?.trim() ||
+    'Cotton';
+
+  const bottomFabric =
+    product.bottom_fabric ||
+    product.description?.match(/bottom\s*:\s*([^|\n]+)/i)?.[1]?.trim() ||
+    'Cotton';
 
   // Direct WhatsApp query for this product
   const waMessage = `Hello Chetak Fashion! I am interested in:
 - *Item Name*: ${product.name}
 - *Volume*: ${volumeTag}
-- *Rate*: ${product.price ? `₹${product.price}` : 'Enquire'}
+- *Rate*: ${product.price ? `₹${product.price} + GST` : 'Enquire'}
 Please share photos and available color sets.`;
 
   const whatsappUrl = `https://wa.me/${BUSINESS_CONFIG.whatsapp}?text=${encodeURIComponent(waMessage)}`;
@@ -66,7 +87,7 @@ Please share photos and available color sets.`;
   return (
     <div 
       onClick={handleCardClick}
-      className="group relative bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-card transition-all duration-300 flex flex-col overflow-hidden cursor-pointer"
+      className="group relative bg-white rounded-2xl border border-gray-200/80 shadow-sm hover:shadow-card transition-all duration-300 flex flex-col overflow-hidden cursor-pointer"
     >
       {/* Image Thumbnail Container */}
       <div className="relative aspect-[4/5] w-full bg-gray-100 overflow-hidden">
@@ -78,161 +99,87 @@ Please share photos and available color sets.`;
           className="object-cover transition-transform duration-500 group-hover:scale-105"
         />
 
-        {/* Volume Badge Top Left */}
-        <div className="absolute top-2 left-2 bg-brand-700/90 backdrop-blur-md text-white text-[10px] font-bold px-2.5 py-1 rounded-lg shadow-sm border border-brand-500/20">
+        {/* Top Left Brand Badge */}
+        <div className="absolute top-2 left-2 bg-[#701A24] text-white text-[10px] font-extrabold px-2.5 py-0.5 rounded-md shadow-sm uppercase tracking-wider">
+          {brandTag}
+        </div>
+
+        {/* Top Right Volume Badge */}
+        <div className="absolute top-2 right-2 bg-white/95 backdrop-blur-md text-gray-900 text-[10px] font-black px-2.5 py-0.5 rounded-md shadow-sm border border-gray-200">
           {volumeTag}
         </div>
 
-        {/* Quick Add Floating Button on Image Hover */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onAddToEnquiry(product);
-          }}
-          className={`absolute bottom-2 left-2 z-10 px-2.5 py-1.5 rounded-xl text-[11px] font-bold shadow-md transition-all flex items-center gap-1.5 backdrop-blur-md ${
-            isInEnquiryBucket 
-              ? 'bg-emerald-600 text-white border border-emerald-400/30' 
-              : 'bg-white/90 hover:bg-brand-600 text-gray-900 hover:text-white border border-white/40'
-          }`}
-          title={isInEnquiryBucket ? 'In Enquiry Bucket' : 'Add to Enquiry List'}
-        >
-          <ShoppingBag className="w-3.5 h-3.5" />
-          <span>{isInEnquiryBucket ? `In List (${bucketQuantity})` : '+ Add to List'}</span>
-        </button>
-
-        {/* Multiple Photos Badge */}
-        {product.images && product.images.length > 1 && (
-          <div className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-md text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow">
-            📷 {product.images.length} Photos
-          </div>
-        )}
-
-        {/* Featured Badge */}
-        {product.is_featured && (
-          <div className="absolute top-2 right-2 bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow">
-            ★ Featured
-          </div>
-        )}
-
         {/* Out of Stock Overlay */}
         {isOutOfStock && (
-          <div className="absolute top-2 right-2 bg-gray-900/80 text-white text-[10px] font-bold px-2.5 py-1 rounded-full backdrop-blur-sm">
-            Out of Stock
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px] flex items-center justify-center">
+            <span className="bg-gray-900 text-white text-[10px] font-bold px-3 py-1 rounded-full shadow">
+              Out of Stock
+            </span>
           </div>
         )}
       </div>
 
       {/* Card Details */}
-      <div className="p-3 flex flex-col flex-grow justify-between bg-white space-y-2">
+      <div className="p-3.5 flex flex-col flex-grow justify-between bg-white space-y-2">
         <div>
-          {/* Category Chip & Volume info */}
-          <div className="flex items-center justify-between text-[11px] text-gray-500 font-medium mb-1">
-            <span className="truncate">{product.category_name || 'Dress Material'}</span>
-            <span className="text-brand-600 font-bold shrink-0">{volumeTag}</span>
-          </div>
-
-          {/* Item Name (Product Title) */}
-          <h3 className="font-bold text-xs sm:text-sm text-gray-900 line-clamp-2 hover:text-brand-600 transition-colors leading-snug">
+          {/* Product Title */}
+          <h3 className="font-serif font-bold text-sm text-gray-900 line-clamp-1 hover:text-[#701A24] transition-colors">
             {product.name}
           </h3>
 
-          {/* Rate (Price) */}
-          <div className="mt-1.5 flex items-baseline justify-between bg-brand-50/60 px-2 py-1 rounded-lg border border-brand-100">
-            <span className="text-[11px] font-medium text-gray-600">Rate:</span>
+          {/* Fabric Breakdown Rows */}
+          <div className="text-[11px] text-gray-500 font-medium mt-1 leading-relaxed space-y-0.5">
+            <p className="truncate">
+              <span className="text-gray-700 font-semibold">Top :</span> {topFabric} <span className="text-gray-300 mx-1">|</span> <span className="text-gray-700 font-semibold">Dupatta :</span> {dupattaFabric}
+            </p>
+            <p className="truncate">
+              <span className="text-gray-700 font-semibold">Bottom :</span> {bottomFabric}
+            </p>
+          </div>
+
+          {/* Rate / Price Row */}
+          <div className="mt-2 flex items-baseline justify-between">
             {product.price_visible !== false && product.price ? (
-              <div className="flex items-baseline gap-0.5">
-                <span className="text-xs text-brand-700 font-bold">₹</span>
-                <span className="text-sm sm:text-base font-extrabold text-brand-700">{product.price.toLocaleString('en-IN')}</span>
-                <span className="text-[10px] text-gray-500 font-normal">/set</span>
+              <div className="flex items-baseline gap-1 text-[#701A24]">
+                <span className="text-sm font-bold">₹</span>
+                <span className="text-lg font-black tracking-tight">{product.price.toLocaleString('en-IN')}</span>
+                <span className="text-[11px] text-rose-800 font-semibold ml-0.5">+ GST</span>
               </div>
             ) : (
-              <span className="text-xs font-semibold text-brand-700">
-                Contact for Rate
+              <span className="text-xs font-bold text-[#701A24]">
+                Contact for Wholesale Rate
               </span>
             )}
           </div>
         </div>
 
-        {/* Cart Action & Quantity Control Bar */}
-        <div className="pt-2 border-t border-gray-100 space-y-1.5">
-          {/* Primary Add To Cart / Multi-Enquiry Button */}
-          {isInEnquiryBucket ? (
-            <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-xl p-1">
-              <span className="text-[11px] font-bold text-emerald-800 flex items-center gap-1 pl-1">
-                <Check className="w-3.5 h-3.5 text-emerald-600" />
-                Added to List
-              </span>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (bucketQuantity > 1 && onUpdateQuantity) {
-                      onUpdateQuantity(product.id, bucketQuantity - 1);
-                    } else if (onRemoveFromBucket) {
-                      onRemoveFromBucket(product.id);
-                    }
-                  }}
-                  className="w-6 h-6 bg-white hover:bg-emerald-100 border border-emerald-300 text-emerald-900 font-bold rounded-lg text-xs flex items-center justify-center transition-colors"
-                  title="Decrease Quantity"
-                >
-                  <Minus className="w-3 h-3" />
-                </button>
-                <span className="text-xs font-extrabold text-emerald-900 px-1">{bucketQuantity}</span>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (onUpdateQuantity) {
-                      onUpdateQuantity(product.id, bucketQuantity + 1);
-                    } else {
-                      onAddToEnquiry(product);
-                    }
-                  }}
-                  className="w-6 h-6 bg-white hover:bg-emerald-100 border border-emerald-300 text-emerald-900 font-bold rounded-lg text-xs flex items-center justify-center transition-colors"
-                  title="Increase Quantity"
-                >
-                  <Plus className="w-3 h-3" />
-                </button>
-              </div>
-            </div>
-          ) : (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onAddToEnquiry(product);
-              }}
-              className="w-full bg-brand-700 hover:bg-brand-800 text-white font-bold py-1.5 px-2 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all"
-            >
-              <ShoppingBag className="w-3.5 h-3.5 text-yellow-300" />
-              <span>Add to Enquiry Cart</span>
-            </button>
-          )}
+        {/* Action Buttons Row */}
+        <div className="pt-2 border-t border-gray-100 grid grid-cols-2 gap-2">
+          {/* View Details Button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleCardClick();
+            }}
+            className="w-full border border-[#701A24] text-[#701A24] hover:bg-rose-50 text-[11px] font-bold py-1.5 px-2 rounded-xl flex items-center justify-center gap-1 transition-all"
+            title="View Specs & Details"
+          >
+            <Eye className="w-3.5 h-3.5 text-[#701A24]" />
+            <span>View Details</span>
+          </button>
 
-          {/* Action Buttons: View Details & WhatsApp Direct */}
-          <div className="grid grid-cols-2 gap-1.5">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleCardClick();
-              }}
-              className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-1 px-2 rounded-lg text-[11px] flex items-center justify-center gap-1 transition-all"
-              title="View Full Details"
-            >
-              <Eye className="w-3 h-3 text-brand-600" />
-              <span>Details</span>
-            </button>
-
-            <a
-              href={whatsappUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1 px-2 rounded-lg text-[11px] flex items-center justify-center gap-1 shadow-sm transition-all"
-              title="Enquire on WhatsApp"
-            >
-              <WhatsAppIcon className="w-3.5 h-3.5 fill-white shrink-0" />
-              <span>WhatsApp</span>
-            </a>
-          </div>
+          {/* Direct WhatsApp Enquiry Button */}
+          <a
+            href={whatsappUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="w-full bg-[#059669] hover:bg-[#047857] text-white text-[11px] font-bold py-1.5 px-2 rounded-xl flex items-center justify-center gap-1 shadow-sm transition-all"
+            title="Enquire on WhatsApp"
+          >
+            <WhatsAppIcon className="w-3.5 h-3.5 fill-white shrink-0" />
+            <span>Enquiry</span>
+          </a>
         </div>
       </div>
     </div>

@@ -9,6 +9,10 @@ export interface Product {
   id: string;
   name: string;
   volume?: string | null; // e.g. "Vol-12" or "Vol: 1"
+  brand_name?: string | null; // e.g. "GURBAT", "FIZA", "SAHIBA"
+  top_fabric?: string | null; // e.g. "Cotton"
+  bottom_fabric?: string | null; // e.g. "Cotton"
+  dupatta_fabric?: string | null; // e.g. "Cotton" / "Nazneen"
   description?: string | null;
   price?: number | null;
   price_visible: boolean;
@@ -33,6 +37,10 @@ export interface PublicProduct {
   id: string;
   name: string;
   volume?: string | null;
+  brand_name?: string | null;
+  top_fabric?: string | null;
+  bottom_fabric?: string | null;
+  dupatta_fabric?: string | null;
   category_id?: string | null;
   category_name?: string | null;
   is_locked: boolean;
