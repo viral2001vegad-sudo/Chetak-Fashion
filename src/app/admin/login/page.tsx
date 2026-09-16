@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { BUSINESS_CONFIG } from '@/config/business';
+import { getDeviceId } from '@/lib/device/deviceId';
 import { ShieldCheck, Lock, Mail, ArrowLeft, Loader2, AlertCircle } from 'lucide-react';
 
 export default function AdminLoginPage() {
@@ -20,10 +21,12 @@ export default function AdminLoginPage() {
     setErrorMsg('');
 
     try {
+      const deviceId = getDeviceId();
+
       const res = await fetch('/api/admin/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, deviceId }),
       });
 
       const data = await res.json();

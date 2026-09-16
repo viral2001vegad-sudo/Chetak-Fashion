@@ -8,9 +8,16 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { currentPassword, newPassword } = body;
 
-    if (!currentPassword || !newPassword) {
+    if (!currentPassword) {
       return NextResponse.json(
-        { error: 'Current password and new password are required.' },
+        { error: 'Current password is required.' },
+        { status: 400 }
+      );
+    }
+
+    if (!newPassword) {
+      return NextResponse.json(
+        { error: 'New password is required.' },
         { status: 400 }
       );
     }
@@ -25,7 +32,7 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json(
-      { success: true, message: 'Admin password updated successfully in database!' },
+      { success: true, message: 'Admin password updated successfully!' },
       { status: 200 }
     );
   } catch (err: any) {
@@ -36,3 +43,4 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+

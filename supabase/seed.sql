@@ -33,28 +33,48 @@ create table if not exists public.products (
   updated_at timestamptz default now()
 );
 
--- 3. ADMIN USERS TABLE
+-- 3. BANNERS TABLE
+create table if not exists public.banners (
+  id text primary key,
+  title text not null,
+  subtitle text,
+  badge text,
+  image_url text,
+  link_url text,
+  is_active boolean default true,
+  sort_order int default 0,
+  created_at timestamptz default now()
+);
+
+-- 4. STORE SETTINGS TABLE
+create table if not exists public.store_settings (
+  id text primary key default 'main',
+  config jsonb not null,
+  updated_at timestamptz default now()
+);
+
+-- 5. ADMIN USERS TABLE
 create table if not exists public.admin_users (
   id uuid primary key references auth.users(id) on delete cascade,
   business_name text default 'Chetak Fashion',
   created_at timestamptz default now()
 );
 
--- 4. PAGE VIEWS ANALYTICS TABLE
+-- 6. PAGE VIEWS ANALYTICS TABLE
 create table if not exists public.page_views (
   id uuid primary key default gen_random_uuid(),
   page text not null,
   visited_at timestamptz default now()
 );
 
--- 5. ENQUIRIES ANALYTICS TABLE
+-- 7. ENQUIRIES ANALYTICS TABLE
 create table if not exists public.enquiries (
   id uuid primary key default gen_random_uuid(),
   product_ids uuid[] not null,
   sent_at timestamptz default now()
 );
 
--- 6. SUPABASE STORAGE BUCKET FOR PRODUCT IMAGES
+-- 8. SUPABASE STORAGE BUCKET FOR PRODUCT IMAGES
 insert into storage.buckets (id, name, public)
 values ('product-images', 'product-images', true)
 on conflict (id) do nothing;
@@ -62,6 +82,8 @@ on conflict (id) do nothing;
 -- ROW LEVEL SECURITY (RLS) POLICIES
 alter table public.categories enable row level security;
 alter table public.products enable row level security;
+alter table public.banners enable row level security;
+alter table public.store_settings enable row level security;
 alter table public.admin_users enable row level security;
 alter table public.page_views enable row level security;
 alter table public.enquiries enable row level security;
@@ -71,6 +93,10 @@ drop policy if exists "Allow public read active categories" on public.categories
 drop policy if exists "Allow admin full manage categories" on public.categories;
 drop policy if exists "Allow public read visible products" on public.products;
 drop policy if exists "Allow admin full access to products" on public.products;
+drop policy if exists "Allow public read banners" on public.banners;
+drop policy if exists "Allow admin full access to banners" on public.banners;
+drop policy if exists "Allow public read store_settings" on public.store_settings;
+drop policy if exists "Allow admin full access to store_settings" on public.store_settings;
 drop policy if exists "Allow public insert page_views" on public.page_views;
 drop policy if exists "Allow public insert enquiries" on public.enquiries;
 
@@ -81,17 +107,23 @@ create policy "Allow admin full manage categories" on public.categories for all 
 create policy "Allow public read visible products" on public.products for select using (is_hidden = false);
 create policy "Allow admin full access to products" on public.products for all using (true);
 
+create policy "Allow public read banners" on public.banners for select using (true);
+create policy "Allow admin full access to banners" on public.banners for all using (true);
+
+create policy "Allow public read store_settings" on public.store_settings for select using (true);
+create policy "Allow admin full access to store_settings" on public.store_settings for all using (true);
+
 create policy "Allow public insert page_views" on public.page_views for insert with check (true);
 create policy "Allow public insert enquiries" on public.enquiries for insert with check (true);
 
--- 7. INSERT DEFAULT CATEGORIES
+-- 9. INSERT DEFAULT CATEGORIES
 insert into public.categories (id, name, sort_order)
 values 
   ('11111111-1111-1111-1111-111111111111', 'Fancy Printed Suits', 1),
   ('22222222-2222-2222-2222-222222222222', 'Cotton Suit Collections', 2)
 on conflict (id) do update set name = excluded.name;
 
--- 8. INSERT THE 2 CHETAK FASHION PRODUCTS
+-- 10. INSERT THE 2 CHETAK FASHION PRODUCTS
 insert into public.products (
   id,
   name,
@@ -119,7 +151,7 @@ CHETAK FASHION SURAT
   535,
   true,
   '11111111-1111-1111-1111-111111111111',
-  array['https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=800&auto=format&fit=crop&q=80'],
+  array['https://shafiioaxfvtjfahumvv.supabase.co/storage/v1/object/public/product-images/products/1789382420896-93dg3y.jpeg'],
   true,
   false,
   true,
@@ -139,7 +171,7 @@ CHETAK FASHION SURAT
   275,
   true,
   '22222222-2222-2222-2222-222222222222',
-  array['https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?w=800&auto=format&fit=crop&q=80'],
+  array['https://shafiioaxfvtjfahumvv.supabase.co/storage/v1/object/public/product-images/products/1789382128933-t3wqhx.jpeg'],
   true,
   false,
   true,
@@ -150,3 +182,30 @@ on conflict (id) do update set
   name = excluded.name,
   description = excluded.description,
   price = excluded.price;
+
+-- 11. INSERT DEFAULT STORE SETTINGS
+insert into public.store_settings (id, config)
+values (
+  'main',
+  '{
+    "name": "Chetak Fashion",
+    "type": "Textile / Saree / Dress Material Store",
+    "tagline": "Manufacturer of Exclusive Dress Material Collection",
+    "contactPerson": "Pratap Singh",
+    "phone": "+91 9724660535",
+    "rawPhone": "9724660535",
+    "whatsapp": "919724660535",
+    "address": "A-1001 To 1003 & 1034 To 1036, 1st Floor, Radha Raman Textile Mkt. (RRTM-1) Saroli, Surat-395010, Gujarat",
+    "gstin": "24FLAPS3668L1ZK",
+    "instagram": "https://instagram.com/chetakfashion",
+    "googleMapsUrl": "https://maps.google.com/?q=Radha+Raman+Textile+Market+Saroli+Surat",
+    "logoPath": "/logo.svg",
+    "colors": {
+      "primary": "#98161E",
+      "primaryDark": "#7C151B",
+      "accent": "#D4AF37",
+      "background": "#FAFAFA"
+    }
+  }'::jsonb
+)
+on conflict (id) do nothing;

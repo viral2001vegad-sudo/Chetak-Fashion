@@ -2,32 +2,32 @@ import { Product, Category, Banner } from '@/types';
 
 export const MOCK_CATEGORIES: Category[] = [
   {
-    id: 'cat-new-launch',
-    name: 'New Launch',
+    id: '11111111-1111-1111-1111-111111111111',
+    name: 'Fancy Printed Suits',
     sort_order: 1,
     created_at: '2026-09-14T10:08:27.258829+00:00'
   },
   {
-    id: 'cat-cotton',
-    name: 'Cotton',
+    id: '22222222-2222-2222-2222-222222222222',
+    name: 'Cotton Suit Collections',
     sort_order: 2,
-    created_at: '2026-09-14T10:08:27.258829+00:00'
-  },
-  {
-    id: 'cat-rayon',
-    name: 'Rayon',
-    sort_order: 3,
-    created_at: '2026-09-14T10:08:27.258829+00:00'
-  },
-  {
-    id: 'cat-jaam-cotton',
-    name: 'Jaam Cotton',
-    sort_order: 4,
     created_at: '2026-09-14T10:08:27.258829+00:00'
   }
 ];
 
-export const MOCK_BANNERS: Banner[] = [];
+export const MOCK_BANNERS: Banner[] = [
+  {
+    id: 'banner-default-1',
+    title: 'Surat Direct Wholesale Manufacturer',
+    subtitle: 'Exclusive Dress Material & Suit Collection directly from manufacturer at wholesale factory rates.',
+    badge: 'SURAT DIRECT WHOLESALE',
+    image_url: 'https://shafiioaxfvtjfahumvv.supabase.co/storage/v1/object/public/product-images/products/1789382420896-93dg3y.jpeg',
+    link_url: '',
+    is_active: true,
+    sort_order: 1,
+    created_at: '2026-09-14T10:08:27.258829+00:00'
+  }
+];
 
 export const MOCK_PRODUCTS: Product[] = [
   {
@@ -37,8 +37,8 @@ export const MOCK_PRODUCTS: Product[] = [
     description: '👚 Top: RAYON COTTON PRINT Kat Dana , Dhagatikali combo WORK (2.50MTR)\r\n👖 Bottom: RAYON COTTON (2.50MTR)\r\n🧣 Dupatta: RAYON COTTON PRINT (2.25 MTR)\r\n📦 Packing: 8 Pcs Photo + Pauch + Bag (Billing Plus GST)\r\n\r\nCHETAK FASHION SURAT\r\n(Mfg. of Exclusive Cotton Dress Material Fabric)',
     price: 535,
     price_visible: true,
-    category_id: 'cat-rayon',
-    category_name: 'Rayon',
+    category_id: '11111111-1111-1111-1111-111111111111',
+    category_name: 'Fancy Printed Suits',
     images: [
       'https://shafiioaxfvtjfahumvv.supabase.co/storage/v1/object/public/product-images/products/1789382420896-93dg3y.jpeg',
       'https://shafiioaxfvtjfahumvv.supabase.co/storage/v1/object/public/product-images/products/1789382413893-p29iak.jpeg',
@@ -63,8 +63,8 @@ export const MOCK_PRODUCTS: Product[] = [
     description: '👗 Top: Print Soft Cotton Best Quality Swarovski Diamond 💎 & Plain (2.50MTR)\r\n👖 Bottom: Soft Cotton (2.50MTR)\r\n🧣 Dupatta: Cotton Print (2.00 MTR)\r\n📦 Packing: 08 Pcs Pauch + Bag + Catalog (Billing Plus GST)\r\n\r\nCHETAK FASHION SURAT\r\n(Mfg. of Exclusive Cotton Dress Material Fabric)',
     price: 275,
     price_visible: true,
-    category_id: 'cat-cotton',
-    category_name: 'Cotton',
+    category_id: '22222222-2222-2222-2222-222222222222',
+    category_name: 'Cotton Suit Collections',
     images: [
       'https://shafiioaxfvtjfahumvv.supabase.co/storage/v1/object/public/product-images/products/1789382128933-t3wqhx.jpeg',
       'https://shafiioaxfvtjfahumvv.supabase.co/storage/v1/object/public/product-images/products/1789382118191-8qpcxw.jpeg',

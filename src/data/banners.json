@@ -1,1 +1,24 @@
-[]
+[
+  {
+    "id": "banner-default-1",
+    "title": "Surat Direct Wholesale Manufacturer",
+    "subtitle": "Exclusive Dress Material & Suit Collection directly from manufacturer at wholesale factory rates.",
+    "badge": "SURAT DIRECT WHOLESALE",
+    "image_url": "https://shafiioaxfvtjfahumvv.supabase.co/storage/v1/object/public/product-images/products/1789382420896-93dg3y.jpeg",
+    "link_url": "",
+    "is_active": true,
+    "sort_order": 1,
+    "created_at": "2026-09-15T11:34:19.385+00:00"
+  },
+  {
+    "id": "banner-1789478011809",
+    "title": "Surat Direct Wholesale Manufacturer kjjkkjkj",
+    "subtitle": "Exclusive Dress Material & Suit Collections at Factory Rates",
+    "badge": "SURAT DIRECT WHOLESALE jjkjjj",
+    "image_url": "https://shafiioaxfvtjfahumvv.supabase.co/storage/v1/object/public/product-images/products/1789478009657-b4pjav.png",
+    "link_url": "",
+    "is_active": true,
+    "sort_order": 1,
+    "created_at": "2026-09-15T13:13:31.809+00:00"
+  }
+]

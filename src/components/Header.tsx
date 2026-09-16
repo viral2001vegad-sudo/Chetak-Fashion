@@ -44,13 +44,7 @@ export const Header: React.FC<HeaderProps> = ({ searchQuery, onSearchChange }) =
       <div className="bg-brand-700 text-white text-xs py-1.5 px-4 text-center font-medium tracking-wide flex justify-between items-center max-w-7xl mx-auto">
         <span className="truncate">📍 Surat Wholesale Market • {BUSINESS_CONFIG.tagline}</span>
         <div className="flex items-center gap-3 shrink-0">
-          <span className="hidden sm:inline">GSTIN: {BUSINESS_CONFIG.gstin}</span>
-          <Link 
-            href="/admin/login" 
-            className="hover:underline opacity-90 flex items-center gap-1 font-semibold bg-brand-800 px-2 py-0.5 rounded text-[11px]"
-          >
-            <ShieldCheck className="w-3 h-3" /> Admin
-          </Link>
+          <span>GSTIN: {BUSINESS_CONFIG.gstin}</span>
         </div>
       </div>
 

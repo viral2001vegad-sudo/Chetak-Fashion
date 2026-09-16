@@ -7,6 +7,7 @@ import { Product, Category, Banner } from '@/types';
 import { BusinessConfig } from '@/config/business';
 import { useBusinessConfig } from '@/hooks/useBusinessConfig';
 import { MOCK_PRODUCTS, MOCK_CATEGORIES, MOCK_BANNERS } from '@/lib/mockData';
+import { getDeviceId } from '@/lib/device/deviceId';
 import {
   ShieldCheck,
   Plus,
@@ -112,21 +113,49 @@ export default function AdminDashboardPage() {
   }, [businessConfig]);
 
   useEffect(() => {
-    // Check auth token
-    const token = localStorage.getItem('chetak_admin_token');
-    if (!token) {
-      setIsCheckingAuth(false);
-      setIsAuthenticated(false);
-      router.replace('/admin/login');
-      return;
-    }
+    // Check auth token & device authorization
+    const checkAdminAuth = async () => {
+      const token = localStorage.getItem('chetak_admin_token');
+      if (!token) {
+        setIsCheckingAuth(false);
+        setIsAuthenticated(false);
+        router.replace('/admin/login');
+        return;
+      }
 
-    setIsAuthenticated(true);
-    setIsCheckingAuth(false);
+      try {
+        const deviceId = getDeviceId();
+        const res = await fetch('/api/admin/device/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token, deviceId }),
+        });
 
-    fetchProducts();
-    fetchCategories();
-    fetchBanners();
+        const data = await res.json();
+        if (!res.ok || !data.authorized) {
+          localStorage.removeItem('chetak_admin_token');
+          setIsAuthenticated(false);
+          setIsCheckingAuth(false);
+          router.replace('/admin/login');
+          return;
+        }
+
+        setIsAuthenticated(true);
+        setIsCheckingAuth(false);
+
+        fetchProducts();
+        fetchCategories();
+        fetchBanners();
+      } catch (err) {
+        setIsAuthenticated(true);
+        setIsCheckingAuth(false);
+        fetchProducts();
+        fetchCategories();
+        fetchBanners();
+      }
+    };
+
+    checkAdminAuth();
   }, [router]);
 
   const showToast = (msg: string) => {
@@ -315,10 +344,15 @@ export default function AdminDashboardPage() {
     }
   };
 
-  // --- Password Handlers ---
+  // --- Password Change Handler ---
   const handleChangeAdminPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setPasswordChangeError('');
+
+    if (!currentAdminPassword.trim()) {
+      setPasswordChangeError('Please enter your Current Admin Password.');
+      return;
+    }
 
     if (newAdminPassword !== confirmAdminPassword) {
       setPasswordChangeError('New passwords do not match.');
@@ -336,7 +370,7 @@ export default function AdminDashboardPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          currentPassword: currentAdminPassword,
+          currentPassword: currentAdminPassword.trim(),
           newPassword: newAdminPassword,
         }),
       });
@@ -1161,30 +1195,30 @@ export default function AdminDashboardPage() {
         {activeTab === 'security' && (
           <div className="max-w-2xl bg-white p-6 sm:p-8 rounded-3xl border border-gray-200/80 shadow-sm space-y-6">
             <div className="flex items-center gap-3 border-b border-gray-100 pb-4">
-              <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center shrink-0">
-                <ShieldCheck className="w-5 h-5 text-amber-600" />
+              <div className="w-10 h-10 rounded-2xl bg-brand-50 border border-brand-200 flex items-center justify-center shrink-0">
+                <ShieldCheck className="w-5 h-5 text-brand-600" />
               </div>
               <div>
-                <h3 className="font-bold text-base text-gray-900">Admin Master Password</h3>
-                <p className="text-xs text-gray-500">Update credentials for logging into the admin portal.</p>
+                <h3 className="font-bold text-base text-gray-900">Admin Master Password & Auth Security</h3>
+                <p className="text-xs text-gray-500">Update admin password securely using your Current Admin Password.</p>
               </div>
             </div>
 
             <form onSubmit={handleChangeAdminPassword} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">Current Password</label>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Current Admin Password *</label>
                 <input
                   type="password"
                   value={currentAdminPassword}
                   onChange={(e) => setCurrentAdminPassword(e.target.value)}
-                  placeholder="Enter current password"
+                  placeholder="Enter your current password"
                   className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">New Admin Password</label>
+                <label className="block text-xs font-bold text-gray-700 mb-1">New Admin Password *</label>
                 <input
                   type="password"
                   value={newAdminPassword}
@@ -1196,7 +1230,7 @@ export default function AdminDashboardPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">Confirm New Password</label>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Confirm New Password *</label>
                 <input
                   type="password"
                   value={confirmAdminPassword}
@@ -1217,7 +1251,7 @@ export default function AdminDashboardPage() {
               <button
                 type="submit"
                 disabled={isSubmittingPassword}
-                className="bg-brand-600 hover:bg-brand-700 text-white px-6 py-3 rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2"
+                className="bg-brand-600 hover:bg-brand-700 text-white px-6 py-3 rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 w-full sm:w-auto"
               >
                 {isSubmittingPassword ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 Update Admin Password

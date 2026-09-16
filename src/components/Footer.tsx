@@ -92,11 +92,6 @@ export const Footer: React.FC = () => {
                 <Instagram className="w-3.5 h-3.5 text-pink-400" /> Follow on Instagram
               </a>
             </li>
-            <li className="pt-2 border-t border-gray-800">
-              <Link href="/admin/login" className="text-amber-400 hover:text-amber-300 flex items-center gap-1 font-semibold">
-                <ShieldCheck className="w-3.5 h-3.5" /> Admin Panel Login
-              </Link>
-            </li>
           </ul>
         </div>
 

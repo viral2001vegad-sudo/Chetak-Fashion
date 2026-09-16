@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Product } from '@/types';
 import { BUSINESS_CONFIG } from '@/config/business';
+import { getDeviceId } from '@/lib/device/deviceId';
 import {
   BarChart3,
   TrendingUp,
@@ -52,6 +53,20 @@ export default function AdminInsightsPage() {
     async function fetchInsights() {
       setIsLoading(true);
       try {
+        const deviceId = getDeviceId();
+        const verifyRes = await fetch('/api/admin/device/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token, deviceId }),
+        });
+
+        const verifyData = await verifyRes.json();
+        if (!verifyRes.ok || !verifyData.authorized) {
+          localStorage.removeItem('chetak_admin_token');
+          router.push('/admin/login');
+          return;
+        }
+
         const res = await fetch('/api/admin/insights');
         const data = await res.json();
         setStats(data);
