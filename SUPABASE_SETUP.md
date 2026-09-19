@@ -1,174 +1,242 @@
-# Supabase Database Setup & Reset Guide
+# Supabase Database Setup & Migration Guide
 
-This guide contains the complete SQL query script to set up or clean reset your Supabase Database for the **Chetak Fashion** application.
+This document contains the complete SQL query scripts to set up a **Fresh Client Account** or **Update an Existing Database** for **Chetak Fashion**.
 
 ---
 
-## 📋 Instructions for Supabase SQL Editor
+## 📋 How to Run SQL in Client's Supabase Account
 
-1. Open your **[Supabase Dashboard](https://supabase.com/dashboard)**.
-2. Select your project (`shafiioaxfvtjfahumvv`).
-3. Click on the **SQL Editor** (`>_` icon) in the left sidebar.
+1. Log in to the client's **[Supabase Dashboard](https://supabase.com/dashboard)**.
+2. Select the client project.
+3. Click on the **SQL Editor** (`>_` icon) in the left sidebar menu.
 4. Click **+ New Query**.
-5. Copy the SQL script below, paste it into the query editor, and click **RUN**.
+5. Copy one of the SQL scripts below, paste it into the query box, and click **RUN** (or `Ctrl + Enter`).
 
 ---
 
-## 💻 Clean Database Reset SQL Query (0 Products)
+## ⚡ OPTION 1: Update Existing Client Database (Keep All Data)
+
+If the client already has a running database and you just want to add the new columns (`custom_fields`, `youtube_url`, `pdf_url`, `tutorial_videos` table, etc.) without deleting any existing data, run this query:
+
+```sql
+-- 1. ADD NEW COLUMNS TO PRODUCTS TABLE
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS volume TEXT;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS brand_name TEXT;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS top_fabric TEXT;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS bottom_fabric TEXT;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS dupatta_fabric TEXT;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS youtube_url TEXT;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS pdf_url TEXT;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS custom_fields JSONB DEFAULT '[]'::jsonb;
+
+-- 2. CREATE TUTORIAL VIDEOS TABLE (IF NOT EXISTS)
+CREATE TABLE IF NOT EXISTS public.tutorial_videos (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title TEXT NOT NULL,
+  description TEXT,
+  video_url TEXT NOT NULL,
+  thumbnail_url TEXT,
+  category TEXT DEFAULT 'Manage Catalog',
+  action_text TEXT,
+  action_url TEXT,
+  sort_order INT DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 3. ENABLE RLS & POLICIES FOR TUTORIAL VIDEOS
+ALTER TABLE public.tutorial_videos ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow public read tutorial_videos" ON public.tutorial_videos;
+DROP POLICY IF EXISTS "Allow admin full manage tutorial_videos" ON public.tutorial_videos;
+CREATE POLICY "Allow public read tutorial_videos" ON public.tutorial_videos FOR SELECT USING (true);
+CREATE POLICY "Allow admin full manage tutorial_videos" ON public.tutorial_videos FOR ALL USING (true);
+```
+
+---
+
+## 🚀 OPTION 2: Complete Fresh Database Setup (For New Client Account)
+
+Use this script when setting up a brand-new Supabase project for a client from scratch (creates all tables, RLS policies, default admin credentials, and default settings).
 
 ```sql
 -- =========================================================
--- CHETAK FASHION SUPABASE COMPLETE FRESH DATABASE RESET SQL
--- Copy & Paste this ENTIRE script into Supabase SQL Editor and click RUN
+-- CHETAK FASHION COMPLETE FRESH DATABASE SETUP SQL
+-- Copy & Paste this ENTIRE script into Supabase SQL Editor
 -- =========================================================
 
 -- 0. DROP ALL EXISTING TABLES & POLICIES (CLEAN RESET)
-drop table if exists public.admin_device_lock cascade;
-drop table if exists public.admin_users cascade;
-drop table if exists public.enquiries cascade;
-drop table if exists public.page_views cascade;
-drop table if exists public.banners cascade;
-drop table if exists public.products cascade;
-drop table if exists public.categories cascade;
-drop table if exists public.store_settings cascade;
+DROP TABLE IF EXISTS public.tutorial_videos CASCADE;
+DROP TABLE IF EXISTS public.admin_device_lock CASCADE;
+DROP TABLE IF EXISTS public.admin_users CASCADE;
+DROP TABLE IF EXISTS public.enquiries CASCADE;
+DROP TABLE IF EXISTS public.page_views CASCADE;
+DROP TABLE IF EXISTS public.banners CASCADE;
+DROP TABLE IF EXISTS public.products CASCADE;
+DROP TABLE IF EXISTS public.categories CASCADE;
+DROP TABLE IF EXISTS public.store_settings CASCADE;
 
--- 1. CATEGORIES TABLE (Empty)
-create table public.categories (
-  id uuid primary key default gen_random_uuid(),
-  name text not null,
-  image_url text,
-  sort_order int default 0,
-  created_at timestamptz default now()
+-- 1. CATEGORIES TABLE
+CREATE TABLE public.categories (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  image_url TEXT,
+  sort_order INT DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 2. PRODUCTS TABLE (Empty)
-create table public.products (
-  id uuid primary key default gen_random_uuid(),
-  name text not null,
-  description text,
-  price numeric,
-  price_visible boolean default true,
-  category_id uuid references public.categories(id) on delete set null,
-  images text[] not null default '{}',
-  in_stock boolean default true,
-  is_hidden boolean default false,
-  is_featured boolean default false,
-  is_locked boolean default false,
-  password_hash text,
-  preview_image text,
-  view_count int default 0,
-  enquiry_count int default 0,
-  sort_order int default 0,
-  created_at timestamptz default now(),
-  updated_at timestamptz default now()
+-- 2. PRODUCTS TABLE (Includes YouTube Video, PDF Catalog & Dynamic Custom Fields)
+CREATE TABLE public.products (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  volume TEXT,
+  brand_name TEXT,
+  top_fabric TEXT,
+  bottom_fabric TEXT,
+  dupatta_fabric TEXT,
+  description TEXT,
+  price NUMERIC,
+  price_visible BOOLEAN DEFAULT TRUE,
+  category_id UUID REFERENCES public.categories(id) ON DELETE SET NULL,
+  images TEXT[] NOT NULL DEFAULT '{}',
+  in_stock BOOLEAN DEFAULT TRUE,
+  is_hidden BOOLEAN DEFAULT FALSE,
+  is_featured BOOLEAN DEFAULT FALSE,
+  is_locked BOOLEAN DEFAULT FALSE,
+  password_hash TEXT,
+  preview_image TEXT,
+  youtube_url TEXT,
+  pdf_url TEXT,
+  custom_fields JSONB DEFAULT '[]'::jsonb,
+  view_count INT DEFAULT 0,
+  enquiry_count INT DEFAULT 0,
+  sort_order INT DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 3. BANNERS TABLE (Empty)
-create table public.banners (
-  id text primary key,
-  title text not null,
-  subtitle text,
-  badge text,
-  image_url text,
-  link_url text,
-  is_active boolean default true,
-  sort_order int default 0,
-  created_at timestamptz default now()
+-- 3. BANNERS TABLE
+CREATE TABLE public.banners (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  subtitle TEXT,
+  badge TEXT,
+  image_url TEXT,
+  link_url TEXT,
+  is_active BOOLEAN DEFAULT TRUE,
+  sort_order INT DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- 4. STORE SETTINGS TABLE
-create table public.store_settings (
-  id text primary key default 'main',
-  config jsonb not null,
-  updated_at timestamptz default now()
+CREATE TABLE public.store_settings (
+  id TEXT PRIMARY KEY DEFAULT 'main',
+  config JSONB NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- 5. ADMIN USERS TABLE
-create table public.admin_users (
-  id uuid primary key default gen_random_uuid(),
-  email text not null unique,
-  password_hash text not null,
-  business_name text default 'Chetak Fashion',
-  created_at timestamptz default now(),
-  updated_at timestamptz default now()
+CREATE TABLE public.admin_users (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
+  business_name TEXT DEFAULT 'Chetak Fashion',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- 6. PAGE VIEWS ANALYTICS TABLE
-create table public.page_views (
-  id uuid primary key default gen_random_uuid(),
-  page text not null,
-  visited_at timestamptz default now()
+CREATE TABLE public.page_views (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  page TEXT NOT NULL,
+  visited_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- 7. ENQUIRIES ANALYTICS TABLE
-create table public.enquiries (
-  id uuid primary key default gen_random_uuid(),
-  product_ids uuid[] not null,
-  sent_at timestamptz default now()
+CREATE TABLE public.enquiries (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_ids UUID[] NOT NULL,
+  sent_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- 8. ADMIN DEVICE LOCK TABLE FOR SINGLE-DEVICE AUTH
-create table public.admin_device_lock (
-  id uuid primary key default gen_random_uuid(),
-  admin_user_id text not null unique,
-  device_id text not null,
-  is_active boolean not null default true,
-  registered_at timestamptz not null default now(),
-  last_seen_at timestamptz not null default now(),
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+CREATE TABLE public.admin_device_lock (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  admin_user_id TEXT NOT NULL UNIQUE,
+  device_id TEXT NOT NULL,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  registered_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 9. SUPABASE STORAGE BUCKET FOR PRODUCT IMAGES
-insert into storage.buckets (id, name, public)
-values ('product-images', 'product-images', true)
-on conflict (id) do nothing;
+-- 9. TUTORIAL VIDEOS TABLE
+CREATE TABLE public.tutorial_videos (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title TEXT NOT NULL,
+  description TEXT,
+  video_url TEXT NOT NULL,
+  thumbnail_url TEXT,
+  category TEXT DEFAULT 'Manage Catalog',
+  action_text TEXT,
+  action_url TEXT,
+  sort_order INT DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
 
--- 10. ENABLE ROW LEVEL SECURITY (RLS)
-alter table public.categories enable row level security;
-alter table public.products enable row level security;
-alter table public.banners enable row level security;
-alter table public.store_settings enable row level security;
-alter table public.admin_users enable row level security;
-alter table public.page_views enable row level security;
-alter table public.enquiries enable row level security;
-alter table public.admin_device_lock enable row level security;
+-- 10. SUPABASE STORAGE BUCKET FOR PRODUCT IMAGES
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('product-images', 'product-images', true)
+ON CONFLICT (id) DO NOTHING;
 
--- 11. CREATE POLICIES
-create policy "Allow public read active categories" on public.categories for select using (true);
-create policy "Allow admin full manage categories" on public.categories for all using (true);
+-- 11. ENABLE ROW LEVEL SECURITY (RLS)
+ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.banners ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.store_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.admin_users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.page_views ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.enquiries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.admin_device_lock ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.tutorial_videos ENABLE ROW LEVEL SECURITY;
 
-create policy "Allow public read visible products" on public.products for select using (is_hidden = false);
-create policy "Allow admin full access to products" on public.products for all using (true);
+-- 12. CREATE RLS POLICIES
+CREATE POLICY "Allow public read tutorial_videos" ON public.tutorial_videos FOR SELECT USING (true);
+CREATE POLICY "Allow admin full manage tutorial_videos" ON public.tutorial_videos FOR ALL USING (true);
 
-create policy "Allow public read banners" on public.banners for select using (true);
-create policy "Allow admin full access to banners" on public.banners for all using (true);
+CREATE POLICY "Allow public read active categories" ON public.categories FOR SELECT USING (true);
+CREATE POLICY "Allow admin full manage categories" ON public.categories FOR ALL USING (true);
 
-create policy "Allow public read store_settings" on public.store_settings for select using (true);
-create policy "Allow admin full access to store_settings" on public.store_settings for all using (true);
+CREATE POLICY "Allow public read visible products" ON public.products FOR SELECT USING (is_hidden = false);
+CREATE POLICY "Allow admin full access to products" ON public.products FOR ALL USING (true);
 
-create policy "Allow admin full manage admin_users" on public.admin_users for all using (true);
+CREATE POLICY "Allow public read banners" ON public.banners FOR SELECT USING (true);
+CREATE POLICY "Allow admin full access to banners" ON public.banners FOR ALL USING (true);
 
-create policy "Allow public insert page_views" on public.page_views for insert with check (true);
-create policy "Allow public insert enquiries" on public.enquiries for insert with check (true);
+CREATE POLICY "Allow public read store_settings" ON public.store_settings FOR SELECT USING (true);
+CREATE POLICY "Allow admin full access to store_settings" ON public.store_settings FOR ALL USING (true);
 
-create policy "Allow service role full manage admin_device_lock" on public.admin_device_lock for all using (true);
+CREATE POLICY "Allow admin full manage admin_users" ON public.admin_users FOR ALL USING (true);
 
--- 12. SEED DEFAULT ADMIN LOGIN CREDENTIALS ONLY
+CREATE POLICY "Allow public insert page_views" ON public.page_views FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public insert enquiries" ON public.enquiries FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Allow service role full manage admin_device_lock" ON public.admin_device_lock FOR ALL USING (true);
+
+-- 13. SEED DEFAULT ADMIN LOGIN CREDENTIALS
 -- Email: admin@chetakfashion.com
 -- Password: admin123
-insert into public.admin_users (id, email, password_hash, business_name)
-values (
+INSERT INTO public.admin_users (id, email, password_hash, business_name)
+VALUES (
   '00000000-0000-0000-0000-000000000001',
   'admin@chetakfashion.com',
   '$2a$10$SIB3rwV48dmQeruyj7JUUekv3jbZPox3IBR6tKO71klDQFgiDZOF6',
   'Chetak Fashion'
 )
-on conflict (email) do update set password_hash = excluded.password_hash;
+ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash;
 
--- 13. SEED DEFAULT STORE SETTINGS
-insert into public.store_settings (id, config)
-values (
+-- 14. SEED DEFAULT STORE SETTINGS
+INSERT INTO public.store_settings (id, config)
+VALUES (
   'main',
   '{
     "name": "Chetak Fashion",
@@ -182,7 +250,7 @@ values (
     "gstin": "24FLAPS3668L1ZK",
     "instagram": "https://instagram.com/chetakfashion",
     "googleMapsUrl": "https://maps.google.com/?q=Radha+Raman+Textile+Market+Saroli+Surat",
-    "logoPath": "/logo.svg",
+    "logoPath": "/logo.png",
     "colors": {
       "primary": "#98161E",
       "primaryDark": "#7C151B",
@@ -191,11 +259,11 @@ values (
     }
   }'::jsonb
 )
-on conflict (id) do nothing;
+ON CONFLICT (id) DO NOTHING;
 ```
 
 ---
 
-## 🔑 Default Credentials After Setup:
-- **Admin Email**: `admin@chetakfashion.com`
-- **Admin Password**: `admin123`
+## 🔑 Default Credentials After Fresh Setup:
+- **Admin Login Email**: `admin@chetakfashion.com`
+- **Admin Login Password**: `admin123`

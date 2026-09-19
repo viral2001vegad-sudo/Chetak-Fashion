@@ -54,7 +54,7 @@ export default function AdminLoginPage() {
         <div className="text-center space-y-2">
           <div className="relative w-16 h-16 rounded-2xl bg-white border border-gray-200 shadow-sm p-2 mx-auto flex items-center justify-center">
             <img
-              src="/logo.svg"
+              src={BUSINESS_CONFIG.logoPath || "/logo.png"}
               alt={BUSINESS_CONFIG.name}
               width={64}
               height={64}

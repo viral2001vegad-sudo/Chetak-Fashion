@@ -31,7 +31,7 @@ export const DEFAULT_BUSINESS_CONFIG: BusinessConfig = {
   gstin: "24FLAPS3668L1ZK",
   instagram: "https://instagram.com/chetakfashion",
   googleMapsUrl: "https://maps.google.com/?q=Radha+Raman+Textile+Market+Saroli+Surat",
-  logoPath: "/logo.svg",
+  logoPath: "/logo.png",
   colors: {
     primary: "#98161E",
     primaryDark: "#7C151B",

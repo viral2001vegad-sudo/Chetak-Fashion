@@ -100,6 +100,8 @@ export function sanitizeProductForPublic(product: Product): PublicProduct {
       price: undefined,
       price_visible: undefined,
       description: undefined,
+      youtube_url: undefined,
+      pdf_url: undefined,
     };
   }
 
@@ -109,5 +111,7 @@ export function sanitizeProductForPublic(product: Product): PublicProduct {
     price: product.price,
     price_visible: product.price_visible,
     description: product.description,
+    youtube_url: product.youtube_url || null,
+    pdf_url: product.pdf_url || null,
   };
 }

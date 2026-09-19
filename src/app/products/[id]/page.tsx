@@ -12,6 +12,8 @@ import { Product, PublicProduct, EnquiryItem } from '@/types';
 import { MOCK_PRODUCTS } from '@/lib/mockData';
 import { useBusinessConfig } from '@/hooks/useBusinessConfig';
 import { WhatsAppIcon } from '@/components/icons/WhatsAppIcon';
+import { getYouTubeEmbedUrl } from '@/lib/media';
+import { parseCustomFields, filterValidCustomFields } from '@/lib/customFields';
 import {
   ArrowLeft,
   Lock,
@@ -30,7 +32,11 @@ import {
   Sparkles,
   Share2,
   Eye,
-  PackageCheck
+  PackageCheck,
+  Video,
+  FileText,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -229,6 +235,8 @@ export default function ProductDetailPage() {
     'Vol Available';
 
   const inBucketItem = bucket.find((b) => b.product.id === activeProd.id);
+  const youtubeEmbedUrl = (!activeProd.is_locked || isUnlocked) ? getYouTubeEmbedUrl(activeProd.youtube_url) : null;
+  const pdfCatalogUrl = (!activeProd.is_locked || isUnlocked) && activeProd.pdf_url ? activeProd.pdf_url : null;
 
   // WhatsApp Message Text
   const waMessage = `Hello Chetak Fashion! I am interested in ordering:
@@ -442,6 +450,23 @@ Please send catalog PDF and set photos.`;
                   <div className="bg-gray-50 rounded-2xl p-4 border border-gray-200/80 text-xs leading-relaxed font-medium whitespace-pre-line text-gray-700">
                     {activeProd.description || 'Full cut cotton printed suit set with dupatta.'}
                   </div>
+
+                  {/* Dynamic Custom Specifications Grid */}
+                  {filterValidCustomFields(activeProd.custom_fields).length > 0 && (
+                    <div className="pt-3 border-t border-gray-100 space-y-2">
+                      <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wider flex items-center gap-1.5">
+                        <Sparkles className="w-4 h-4 text-amber-500" /> Custom Specifications & Attributes
+                      </h4>
+                      <div className="grid grid-cols-2 gap-2">
+                        {filterValidCustomFields(activeProd.custom_fields).map((cf, idx) => (
+                          <div key={idx} className="bg-amber-50/70 border border-amber-200/80 p-3 rounded-2xl">
+                            <span className="text-[10px] font-bold text-amber-900 uppercase tracking-wide block">{cf.label}</span>
+                            <span className="text-xs font-semibold text-gray-800 block mt-0.5">{cf.value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -514,6 +539,63 @@ Please send catalog PDF and set photos.`;
           </div>
 
         </div>
+
+        {/* --- IN-WEB YOUTUBE VIDEO PLAYER SECTION --- */}
+        {youtubeEmbedUrl && (
+          <div className="bg-white p-6 sm:p-8 rounded-3xl border border-gray-200/80 shadow-soft space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 pb-3">
+              <div>
+                <h3 className="font-serif text-lg sm:text-xl font-bold text-gray-900 flex items-center gap-2">
+                  <Video className="w-5 h-5 text-red-600 fill-red-600" /> Watch Design Lookbook Video
+                </h3>
+                <p className="text-xs text-gray-500">Video plays directly inside Chetak Fashion Web Catalog.</p>
+              </div>
+              <span className="text-xs bg-red-50 text-red-700 font-bold px-3 py-1 rounded-full border border-red-200">
+                HD Video Preview
+              </span>
+            </div>
+            
+            <div className="relative aspect-video w-full rounded-2xl overflow-hidden bg-black shadow-md border border-gray-200">
+              <iframe
+                src={youtubeEmbedUrl}
+                title={`${activeProd.name} Lookbook Video`}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="absolute inset-0 w-full h-full"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* --- IN-WEB EMBEDDED PDF CATALOG VIEWER SECTION --- */}
+        {pdfCatalogUrl && (
+          <div className="bg-white p-6 sm:p-8 rounded-3xl border border-gray-200/80 shadow-soft space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 pb-3">
+              <div>
+                <h3 className="font-serif text-lg sm:text-xl font-bold text-gray-900 flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-blue-600" /> Digital PDF Catalog & Wholesale Rate Booklet
+                </h3>
+                <p className="text-xs text-gray-500">Browse full multi-page PDF catalog directly below.</p>
+              </div>
+              <a
+                href={pdfCatalogUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs bg-blue-50 hover:bg-blue-100 text-blue-800 font-bold px-4 py-2 rounded-xl border border-blue-200 flex items-center gap-1.5 transition-colors"
+              >
+                <ExternalLink className="w-4 h-4" /> Open Fullscreen PDF
+              </a>
+            </div>
+
+            <div className="w-full h-[550px] sm:h-[650px] rounded-2xl overflow-hidden bg-gray-100 border border-gray-300 shadow-inner">
+              <iframe
+                src={`${pdfCatalogUrl}#toolbar=1`}
+                title={`${activeProd.name} PDF Catalog`}
+                className="w-full h-full rounded-2xl"
+              />
+            </div>
+          </div>
+        )}
 
         {/* Store Location & Directions Banner */}
         <div className="bg-gradient-to-r from-gray-900 via-brand-950 to-gray-900 text-white p-6 sm:p-8 rounded-3xl shadow-soft flex flex-col md:flex-row items-start md:items-center justify-between gap-6 border border-gray-800">

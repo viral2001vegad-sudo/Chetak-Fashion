@@ -55,7 +55,7 @@ export const Header: React.FC<HeaderProps> = ({ searchQuery, onSearchChange }) =
           <div className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-white border border-brand-100 shadow-sm p-1.5 flex items-center justify-center overflow-hidden shrink-0 group-hover:scale-105 transition-transform">
             {/* Standard img tag with explicit width/height and style constraints */}
             <img
-              src="/logo.svg"
+              src={BUSINESS_CONFIG.logoPath || "/logo.png"}
               alt={BUSINESS_CONFIG.name}
               width={56}
               height={56}

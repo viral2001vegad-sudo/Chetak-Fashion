@@ -37,7 +37,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { id, name, volume, description, price, price_visible, category_id, images, in_stock, is_hidden, is_featured, is_locked, password, preview_image } = body;
+    const { id, name, volume, description, price, price_visible, category_id, images, in_stock, is_hidden, is_featured, is_locked, password, preview_image, youtube_url, pdf_url, custom_fields } = body;
 
     if (!name || typeof name !== 'string') {
       return NextResponse.json({ message: 'Product name is required' }, { status: 400 });
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
     }
 
     const defaultImages = ['https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=800&auto=format&fit=crop&q=80'];
-    const validImages = Array.isArray(images) && images.length > 0 ? images.slice(0, 2) : defaultImages;
+    const validImages = Array.isArray(images) && images.length > 0 ? images.slice(0, 5) : defaultImages;
 
     let finalName = name.trim();
     if (volume && String(volume).trim().length > 0) {
@@ -70,6 +70,14 @@ export async function POST(req: NextRequest) {
       if (!/vol/i.test(finalName)) {
         finalName = `${finalName} (${volStr})`;
       }
+    }
+
+    // Clean & validate custom_fields array
+    let sanitizedCustomFields: any[] = [];
+    if (Array.isArray(custom_fields)) {
+      sanitizedCustomFields = custom_fields
+        .filter((cf: any) => cf && typeof cf === 'object' && cf.label && String(cf.label).trim().length > 0 && cf.value && String(cf.value).trim().length > 0)
+        .map((cf: any) => ({ label: String(cf.label).trim(), value: String(cf.value).trim() }));
     }
 
     const productPayload: Record<string, any> = {
@@ -84,6 +92,9 @@ export async function POST(req: NextRequest) {
       is_featured: is_featured === true,
       is_locked: is_locked === true,
       preview_image: preview_image || validImages[0] || defaultImages[0],
+      youtube_url: youtube_url ? String(youtube_url).trim() : null,
+      pdf_url: pdf_url ? String(pdf_url).trim() : null,
+      custom_fields: sanitizedCustomFields.length > 0 ? sanitizedCustomFields : null,
       updated_at: new Date().toISOString()
     };
 
@@ -95,50 +106,76 @@ export async function POST(req: NextRequest) {
       // Fetch old images to clean up any removed photos from Supabase Storage
       const { data: existingProduct } = await supabase
         .from('products')
-        .select('images, preview_image')
+        .select('*')
         .eq('id', id)
         .single();
 
       if (existingProduct) {
         const oldUrls = [
           ...(Array.isArray(existingProduct.images) ? existingProduct.images : []),
-          existingProduct.preview_image
+          existingProduct.preview_image,
+          existingProduct.pdf_url
         ].filter(Boolean);
-        const newUrls = [...validImages, productPayload.preview_image].filter(Boolean);
+        const newUrls = [...validImages, productPayload.preview_image, productPayload.pdf_url].filter(Boolean);
         const removedUrls = oldUrls.filter(u => u && !newUrls.includes(u));
         if (removedUrls.length > 0) {
           await deleteStorageFiles(supabase, removedUrls);
         }
       }
 
-      // Update existing product
-      const { data, error } = await supabase
+      // Update existing product with automatic fallback if columns don't exist yet
+      let updateRes = await supabase
         .from('products')
         .update(productPayload)
         .eq('id', id)
         .select()
         .single();
 
-      if (error) {
-        console.error('Supabase update product error:', error);
-        return NextResponse.json({ message: error.message || 'Error updating product' }, { status: 400 });
+      if (updateRes.error && (updateRes.error.code === 'PGRST204' || updateRes.error.message?.includes('column'))) {
+        console.warn('Supabase missing youtube_url/pdf_url/custom_fields column, retrying payload without missing columns...');
+        delete productPayload.youtube_url;
+        delete productPayload.pdf_url;
+        delete productPayload.custom_fields;
+        updateRes = await supabase
+          .from('products')
+          .update(productPayload)
+          .eq('id', id)
+          .select()
+          .single();
+      }
+
+      if (updateRes.error) {
+        console.error('Supabase update product error:', updateRes.error);
+        return NextResponse.json({ message: updateRes.error.message || 'Error updating product' }, { status: 400 });
       }
       const products = await getAllProducts(supabase);
-      return NextResponse.json({ product: data, products, message: 'Product updated successfully' });
+      return NextResponse.json({ product: updateRes.data, products, message: 'Product updated successfully' });
     } else {
-      // Insert new product
-      const { data, error } = await supabase
+      // Insert new product with automatic fallback if columns don't exist yet
+      let insertRes = await supabase
         .from('products')
         .insert(productPayload)
         .select()
         .single();
 
-      if (error) {
-        console.error('Supabase insert product error:', error);
-        return NextResponse.json({ message: error.message || 'Error creating product' }, { status: 400 });
+      if (insertRes.error && (insertRes.error.code === 'PGRST204' || insertRes.error.message?.includes('column'))) {
+        console.warn('Supabase missing youtube_url/pdf_url/custom_fields column, retrying payload without missing columns...');
+        delete productPayload.youtube_url;
+        delete productPayload.pdf_url;
+        delete productPayload.custom_fields;
+        insertRes = await supabase
+          .from('products')
+          .insert(productPayload)
+          .select()
+          .single();
+      }
+
+      if (insertRes.error) {
+        console.error('Supabase insert product error:', insertRes.error);
+        return NextResponse.json({ message: insertRes.error.message || 'Error creating product' }, { status: 400 });
       }
       const products = await getAllProducts(supabase);
-      return NextResponse.json({ product: data, products, message: 'Product created successfully' });
+      return NextResponse.json({ product: insertRes.data, products, message: 'Product created successfully' });
     }
 
   } catch (err: any) {
@@ -162,14 +199,15 @@ export async function DELETE(req: NextRequest) {
     // 1. Fetch product to clean up uploaded images from Supabase Storage
     const { data: product } = await supabase
       .from('products')
-      .select('images, preview_image')
+      .select('images, preview_image, pdf_url')
       .eq('id', id)
       .single();
 
     if (product) {
       const allImageUrls = [
         ...(Array.isArray(product.images) ? product.images : []),
-        product.preview_image
+        product.preview_image,
+        product.pdf_url
       ];
       await deleteStorageFiles(supabase, allImageUrls);
     }

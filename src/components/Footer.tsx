@@ -18,7 +18,7 @@ export const Footer: React.FC = () => {
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-white p-1 flex items-center justify-center overflow-hidden">
               <img
-                src="/logo.svg"
+                src={BUSINESS_CONFIG.logoPath || "/logo.png"}
                 alt={BUSINESS_CONFIG.name}
                 width={40}
                 height={40}

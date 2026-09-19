@@ -13,8 +13,11 @@ export async function POST(req: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    const ext = file.name.split('.').pop() || 'jpg';
-    const fileName = `products/${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${ext}`;
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+    const isPdf = ext === 'pdf' || file.type === 'application/pdf';
+    const contentType = file.type || (isPdf ? 'application/pdf' : 'image/jpeg');
+    const folder = isPdf ? 'catalogs' : 'products';
+    const fileName = `${folder}/${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${ext}`;
 
     const supabase = createAdminClient();
 
@@ -22,7 +25,7 @@ export async function POST(req: NextRequest) {
     let uploadResult = await supabase.storage
       .from('product-images')
       .upload(fileName, buffer, {
-        contentType: file.type || 'image/jpeg',
+        contentType,
         upsert: true,
       });
 
@@ -34,7 +37,7 @@ export async function POST(req: NextRequest) {
       uploadResult = await supabase.storage
         .from('product-images')
         .upload(fileName, buffer, {
-          contentType: file.type || 'image/jpeg',
+          contentType,
           upsert: true,
         });
     }
@@ -43,7 +46,7 @@ export async function POST(req: NextRequest) {
       console.error('Supabase storage upload error:', uploadResult.error);
       // Fallback data URL if bucket is unconfigured in Supabase UI
       const base64 = buffer.toString('base64');
-      const dataUrl = `data:${file.type || 'image/jpeg'};base64,${base64}`;
+      const dataUrl = `data:${contentType};base64,${base64}`;
       return NextResponse.json({ url: dataUrl, message: 'Uploaded as data URL fallback' });
     }
 

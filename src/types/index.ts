@@ -6,6 +6,11 @@ export interface Category {
   created_at?: string;
 }
 
+export interface CustomField {
+  label: string;
+  value: string;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -14,6 +19,7 @@ export interface Product {
   top_fabric?: string | null; // e.g. "Cotton"
   bottom_fabric?: string | null; // e.g. "Cotton"
   dupatta_fabric?: string | null; // e.g. "Cotton" / "Nazneen"
+  custom_fields?: CustomField[] | Record<string, string> | null;
   description?: string | null;
   price?: number | null;
   price_visible: boolean;
@@ -26,6 +32,8 @@ export interface Product {
   is_locked: boolean;
   password_hash?: string | null;
   preview_image?: string | null;
+  youtube_url?: string | null;
+  pdf_url?: string | null;
   view_count: number;
   enquiry_count: number;
   sort_order: number;
@@ -42,12 +50,15 @@ export interface PublicProduct {
   top_fabric?: string | null;
   bottom_fabric?: string | null;
   dupatta_fabric?: string | null;
+  custom_fields?: CustomField[] | Record<string, string> | null;
   category_id?: string | null;
   category_name?: string | null;
   is_locked: boolean;
   in_stock: boolean;
   is_featured: boolean;
   preview_image?: string | null;
+  youtube_url?: string | null;
+  pdf_url?: string | null;
   // Included ONLY if is_locked === false or product is unlocked in current request
   images?: string[];
   price?: number | null;
@@ -93,4 +104,17 @@ export interface AdminStats {
   totalEnquiries: number;
   topViewed: Product[];
   topEnquired: Product[];
+}
+
+export interface TutorialVideo {
+  id: string;
+  title: string;
+  description?: string | null;
+  video_url: string;
+  thumbnail_url?: string | null;
+  category?: string | null;
+  action_text?: string | null;
+  action_url?: string | null;
+  sort_order: number;
+  created_at?: string;
 }

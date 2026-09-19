@@ -55,6 +55,8 @@ create table public.products (
   is_locked boolean default false,
   password_hash text,
   preview_image text,
+  youtube_url text,
+  pdf_url text,
   view_count int default 0,
   enquiry_count int default 0,
   sort_order int default 0,
@@ -118,12 +120,26 @@ create table public.admin_device_lock (
   updated_at timestamptz not null default now()
 );
 
--- 9. SUPABASE STORAGE BUCKET FOR IMAGES
+-- 9. TUTORIAL VIDEOS TABLE
+create table public.tutorial_videos (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  description text,
+  video_url text not null,
+  thumbnail_url text,
+  category text default 'Manage Catalog',
+  action_text text,
+  action_url text,
+  sort_order int default 0,
+  created_at timestamptz default now()
+);
+
+-- 10. SUPABASE STORAGE BUCKET FOR IMAGES
 insert into storage.buckets (id, name, public)
 values ('product-images', 'product-images', true)
 on conflict (id) do nothing;
 
--- 10. ENABLE ROW LEVEL SECURITY (RLS)
+-- 11. ENABLE ROW LEVEL SECURITY (RLS)
 alter table public.categories enable row level security;
 alter table public.products enable row level security;
 alter table public.banners enable row level security;
@@ -132,8 +148,11 @@ alter table public.admin_users enable row level security;
 alter table public.page_views enable row level security;
 alter table public.enquiries enable row level security;
 alter table public.admin_device_lock enable row level security;
+alter table public.tutorial_videos enable row level security;
 
--- 11. POLICIES SETUP
+-- 12. POLICIES SETUP
+create policy "Allow public read tutorial_videos" on public.tutorial_videos for select using (true);
+create policy "Allow admin full manage tutorial_videos" on public.tutorial_videos for all using (true);
 create policy "Allow public read active categories" on public.categories for select using (true);
 create policy "Allow admin full manage categories" on public.categories for all using (true);
 

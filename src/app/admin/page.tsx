@@ -3,11 +3,13 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Product, Category, Banner } from '@/types';
+import { Product, Category, Banner, TutorialVideo } from '@/types';
 import { BusinessConfig } from '@/config/business';
 import { useBusinessConfig } from '@/hooks/useBusinessConfig';
 import { MOCK_PRODUCTS, MOCK_CATEGORIES, MOCK_BANNERS } from '@/lib/mockData';
 import { getDeviceId } from '@/lib/device/deviceId';
+import { getYouTubeEmbedUrl, getYouTubeThumbnailUrl } from '@/lib/media';
+import { parseCustomFields, filterValidCustomFields } from '@/lib/customFields';
 import {
   ShieldCheck,
   Plus,
@@ -39,7 +41,10 @@ import {
   Check,
   Tag,
   ArrowRight,
-  ChevronRight
+  ChevronRight,
+  Video,
+  Play,
+  ArrowLeft
 } from 'lucide-react';
 
 export default function AdminDashboardPage() {
@@ -47,13 +52,17 @@ export default function AdminDashboardPage() {
   const { config: businessConfig, updateConfig: updateBusinessConfig } = useBusinessConfig();
 
   // Tab State
-  const [activeTab, setActiveTab] = useState<'products' | 'categories' | 'banners' | 'security' | 'settings'>('products');
+  const [activeTab, setActiveTab] = useState<'products' | 'categories' | 'banners' | 'security' | 'settings' | 'tutorials'>('products');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // Data States
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [banners, setBanners] = useState<Banner[]>([]);
+  const [tutorials, setTutorials] = useState<TutorialVideo[]>([]);
+  const [activeTutorialVideo, setActiveTutorialVideo] = useState<TutorialVideo | null>(null);
+  const [isTutorialModalOpen, setIsTutorialModalOpen] = useState(false);
+  const [editingTutorial, setEditingTutorial] = useState<Partial<TutorialVideo> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('all');
@@ -149,6 +158,7 @@ export default function AdminDashboardPage() {
         fetchProducts();
         fetchCategories();
         fetchBanners();
+        fetchTutorials();
       } catch (err) {
         localStorage.removeItem('chetak_admin_token');
         setIsAuthenticated(false);
@@ -211,6 +221,93 @@ export default function AdminDashboardPage() {
       }
     } catch (err) {
       setBanners([]);
+    }
+  };
+
+  const fetchTutorials = async () => {
+    try {
+      const res = await fetch('/api/admin/tutorials');
+      const data = await res.json();
+      if (Array.isArray(data.tutorials)) {
+        setTutorials(data.tutorials);
+      }
+    } catch (err) {
+      console.error('Fetch tutorials error:', err);
+    }
+  };
+
+  const handleOpenAddTutorialModal = () => {
+    setEditingTutorial({
+      title: '',
+      description: '',
+      video_url: '',
+      thumbnail_url: '',
+      category: 'Manage Catalog',
+      action_text: 'Add Products',
+      action_url: 'tab=products',
+      sort_order: tutorials.length + 1,
+    });
+    setIsTutorialModalOpen(true);
+  };
+
+  const handleOpenEditTutorialModal = (tut: TutorialVideo) => {
+    setEditingTutorial({ ...tut });
+    setIsTutorialModalOpen(true);
+  };
+
+  const handleSaveTutorial = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTutorial?.title?.trim() || !editingTutorial?.video_url?.trim()) {
+      showToast('Title and YouTube Video URL are required');
+      return;
+    }
+
+    try {
+      const autoThumb = getYouTubeThumbnailUrl(editingTutorial.video_url);
+      const res = await fetch('/api/admin/tutorials', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...editingTutorial,
+          thumbnail_url: editingTutorial.thumbnail_url || autoThumb,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        showToast(data.message || 'Error saving tutorial video');
+        return;
+      }
+
+      if (Array.isArray(data.tutorials)) {
+        setTutorials(data.tutorials);
+      } else {
+        await fetchTutorials();
+      }
+
+      showToast('Tutorial video saved successfully!');
+      setIsTutorialModalOpen(false);
+      setEditingTutorial(null);
+    } catch (err) {
+      showToast('Failed to save tutorial video');
+    }
+  };
+
+  const handleDeleteTutorial = async (id: string) => {
+    try {
+      const res = await fetch(`/api/admin/tutorials?id=${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (Array.isArray(data.tutorials)) {
+        setTutorials(data.tutorials);
+      } else {
+        await fetchTutorials();
+      }
+      showToast('Tutorial video removed');
+      if (activeTutorialVideo?.id === id) {
+        setActiveTutorialVideo(null);
+      }
+    } catch (err) {
+      showToast('Failed to delete tutorial video');
     }
   };
 
@@ -448,8 +545,8 @@ export default function AdminDashboardPage() {
 
     if (targetField === 'main') {
       const currentImages = editingProduct.images || [];
-      if (currentImages.length >= 2) {
-        showToast('Maximum 2 images allowed per product!');
+      if (currentImages.length >= 5) {
+        showToast('Maximum 5 images allowed per product!');
         e.target.value = '';
         return;
       }
@@ -460,7 +557,7 @@ export default function AdminDashboardPage() {
 
     try {
       const currentImages = editingProduct.images || [];
-      const remainingSlots = targetField === 'main' ? 2 - currentImages.length : 1;
+      const remainingSlots = targetField === 'main' ? 5 - currentImages.length : 1;
       const filesToUpload = files.slice(0, remainingSlots);
 
       for (const file of filesToUpload) {
@@ -480,9 +577,9 @@ export default function AdminDashboardPage() {
 
       if (uploadedUrls.length > 0) {
         if (targetField === 'main') {
-          const combined = [...currentImages, ...uploadedUrls].slice(0, 2);
+          const combined = [...currentImages, ...uploadedUrls].slice(0, 5);
           setEditingProduct({ ...editingProduct, images: combined });
-          showToast(`${uploadedUrls.length} image(s) uploaded! (Max 2 images limit)`);
+          showToast(`${uploadedUrls.length} image(s) uploaded! (Max 5 images limit)`);
         } else {
           setEditingProduct({ ...editingProduct, preview_image: uploadedUrls[0] });
           showToast('Teaser image uploaded!');
@@ -492,6 +589,35 @@ export default function AdminDashboardPage() {
       }
     } catch (err) {
       showToast('Error uploading files');
+    } finally {
+      setIsUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const handlePdfFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !editingProduct) return;
+
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/admin/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (data.url) {
+        setEditingProduct({ ...editingProduct, pdf_url: data.url });
+        showToast('Catalog PDF uploaded successfully!');
+      } else {
+        showToast('PDF upload failed');
+      }
+    } catch (err) {
+      showToast('Error uploading PDF file');
     } finally {
       setIsUploading(false);
       e.target.value = '';
@@ -604,6 +730,7 @@ export default function AdminDashboardPage() {
       top_fabric: 'Cotton',
       dupatta_fabric: 'Cotton',
       bottom_fabric: 'Cotton',
+      custom_fields: [],
       category_id: categories[0]?.id || 'cat-1',
       price: undefined,
       price_visible: true,
@@ -614,6 +741,8 @@ export default function AdminDashboardPage() {
       is_featured: false,
       is_locked: false,
       preview_image: '',
+      youtube_url: '',
+      pdf_url: '',
     });
     setFormPassword('');
     setFormConfirmPassword('');
@@ -650,13 +779,53 @@ export default function AdminDashboardPage() {
       prod.name.match(/\(vol[^\)]+\)/i)?.[0]?.replace(/[\(\)]/g, '') ||
       '';
 
-    // Clean description by removing fabric specs header
+    // Extract custom fields from prod.custom_fields or parse from description
+    let existingCustomFields = parseCustomFields(prod.custom_fields);
+
+    // Fallback: If custom_fields is empty, check if description contains "Label: Value" specs
+    if (existingCustomFields.length === 0 && prod.description) {
+      const lines = prod.description.split('\n');
+      const extracted: { label: string; value: string }[] = [];
+      lines.forEach((line) => {
+        const trimmed = line.trim();
+        if (
+          trimmed.includes(':') &&
+          !/^top\s*:/i.test(trimmed) &&
+          !/^dupatta\s*:/i.test(trimmed) &&
+          !/^bottom\s*:/i.test(trimmed)
+        ) {
+          const parts = trimmed.split(':');
+          if (parts.length >= 2) {
+            const lbl = parts[0].trim().replace(/^📌\s*/, '');
+            const val = parts.slice(1).join(':').trim();
+            if (lbl.length > 0 && val.length > 0 && !/http/i.test(val)) {
+              extracted.push({ label: lbl, value: val });
+            }
+          }
+        }
+      });
+      if (extracted.length > 0) {
+        existingCustomFields = extracted;
+      }
+    }
+
+    // Clean description by removing fabric specs header and custom fields lines
     let cleanDesc = prod.description || '';
     cleanDesc = cleanDesc
       .replace(/Top\s*:\s*[^|\n]+\|\s*Dupatta\s*:\s*[^|\n]+/gi, '')
       .replace(/Bottom\s*:\s*[^|\n]+/gi, '')
-      .replace(/^\s*[\r\n]+/, '')
-      .trim();
+      .replace(/📌\s*Additional Specifications:\s*/gi, '');
+
+    existingCustomFields.forEach((cf) => {
+      if (cf.label && cf.value) {
+        try {
+          const pattern = new RegExp(`${cf.label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*:\\s*${cf.value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'gi');
+          cleanDesc = cleanDesc.replace(pattern, '');
+        } catch (e) {}
+      }
+    });
+
+    cleanDesc = cleanDesc.replace(/^\s*[\r\n]+/, '').trim();
 
     const prodImages = (prod.images && Array.isArray(prod.images) && prod.images.length > 0)
       ? prod.images
@@ -669,8 +838,11 @@ export default function AdminDashboardPage() {
       top_fabric: topF,
       dupatta_fabric: dupF,
       bottom_fabric: botF,
+      custom_fields: existingCustomFields,
       description: cleanDesc,
       images: prodImages,
+      youtube_url: prod.youtube_url || '',
+      pdf_url: prod.pdf_url || '',
     });
     setFormPassword('');
     setFormConfirmPassword('');
@@ -699,9 +871,10 @@ export default function AdminDashboardPage() {
     setFormError('');
 
     try {
-      const sanitizedImages = (editingProduct.images || []).filter(img => img && img.trim().length > 0).slice(0, 2);
+      const sanitizedImages = (editingProduct.images || []).filter(img => img && img.trim().length > 0).slice(0, 5);
+      const validCustomFields = filterValidCustomFields(editingProduct.custom_fields);
 
-      // Prepend fabric specs to description for seamless card & detail rendering
+      // Prepend fabric specs & custom specs to description for seamless card & detail rendering
       let fullDesc = editingProduct.description?.trim() || '';
       const topF = editingProduct.top_fabric?.trim() || 'Cotton';
       const dupF = editingProduct.dupatta_fabric?.trim() || 'Cotton';
@@ -715,13 +888,26 @@ export default function AdminDashboardPage() {
         .trim();
 
       const fabricHeader = `Top : ${topF} | Dupatta : ${dupF}\nBottom : ${botF}`;
-      fullDesc = cleanedDesc ? `${fabricHeader}\n\n${cleanedDesc}` : fabricHeader;
+      
+      let customSpecsText = '';
+      if (validCustomFields.length > 0) {
+        customSpecsText = validCustomFields.map(cf => `${cf.label.trim()}: ${cf.value.trim()}`).join('\n');
+      }
+
+      fullDesc = fabricHeader;
+      if (customSpecsText) {
+        fullDesc += `\n\n${customSpecsText}`;
+      }
+      if (cleanedDesc) {
+        fullDesc += `\n\n${cleanedDesc}`;
+      }
 
       const res = await fetch('/api/admin/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...editingProduct,
+          custom_fields: validCustomFields,
           description: fullDesc,
           images: sanitizedImages,
           preview_image: sanitizedImages[0] || editingProduct.preview_image || '',
@@ -808,7 +994,7 @@ export default function AdminDashboardPage() {
       <div className="md:hidden bg-brand-700 text-white p-4 flex items-center justify-between shadow-md">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-xl bg-white p-1 flex items-center justify-center overflow-hidden">
-            <img src="/logo.svg" alt="Chetak" width={32} height={32} style={{ maxWidth: '32px', maxHeight: '32px' }} />
+            <img src={businessConfig.logoPath || "/logo.png"} alt="Chetak" width={32} height={32} style={{ maxWidth: '32px', maxHeight: '32px' }} />
           </div>
           <span className="font-serif font-bold text-lg tracking-tight">CHETAK ADMIN</span>
         </div>
@@ -830,7 +1016,7 @@ export default function AdminDashboardPage() {
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-2xl bg-white border border-brand-100 shadow-sm p-1.5 flex items-center justify-center shrink-0">
               <img
-                src="/logo.svg"
+                src={businessConfig.logoPath || "/logo.png"}
                 alt="Chetak Fashion"
                 width={44}
                 height={44}
@@ -930,6 +1116,24 @@ export default function AdminDashboardPage() {
               <Settings className="w-4 h-4" />
               <span>Store Settings</span>
             </div>
+          </button>
+
+          {/* Catalog Video Guides Tab */}
+          <button
+            onClick={() => { setActiveTab('tutorials'); setIsMobileSidebarOpen(false); }}
+            className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs font-bold transition-all ${activeTab === 'tutorials'
+                ? 'bg-brand-600 text-white shadow-md shadow-brand-600/20'
+                : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+              }`}
+          >
+            <div className="flex items-center gap-3">
+              <Video className="w-4 h-4" />
+              <span>Manage Catalog Guides</span>
+            </div>
+            <span className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold ${activeTab === 'tutorials' ? 'bg-white/20 text-white' : 'bg-brand-100 text-brand-800'
+              }`}>
+              {tutorials.length}
+            </span>
           </button>
         </nav>
 
@@ -1595,6 +1799,229 @@ export default function AdminDashboardPage() {
             </form>
           </div>
         )}
+
+        {/* TAB 6: CATALOG TUTORIAL VIDEOS & GUIDES */}
+        {activeTab === 'tutorials' && (
+          <div className="space-y-6">
+            
+            {/* VIEW A: INTERACTIVE VIDEO PLAYER (MATCHING USER SCREENSHOT 2) */}
+            {activeTutorialVideo ? (
+              <div className="space-y-6">
+                {/* Back to Grid Button */}
+                <div className="flex items-center justify-between">
+                  <button
+                    onClick={() => setActiveTutorialVideo(null)}
+                    className="inline-flex items-center gap-2 text-xs font-bold text-gray-700 hover:text-brand-700 bg-white hover:bg-gray-100 px-4 py-2 rounded-xl border border-gray-200 shadow-sm transition-all"
+                  >
+                    <ArrowLeft className="w-4 h-4" /> Back to All Guides
+                  </button>
+                  <span className="text-xs font-bold text-gray-500">
+                    Category: <span className="text-gray-900 font-extrabold">{activeTutorialVideo.category || 'Manage Catalog'}</span>
+                  </span>
+                </div>
+
+                {/* Main Player & Related Videos 2-Column Container */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 bg-white p-6 sm:p-8 rounded-3xl border border-gray-200 shadow-sm">
+                  
+                  {/* LEFT: Video Player + Title + Description + CTA Button (8 cols) */}
+                  <div className="lg:col-span-8 space-y-5">
+                    {/* Embedded YouTube Player */}
+                    <div className="relative aspect-video w-full rounded-2xl overflow-hidden bg-black shadow-md border border-gray-200">
+                      <iframe
+                        src={getYouTubeEmbedUrl(activeTutorialVideo.video_url) || ''}
+                        title={activeTutorialVideo.title}
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                        className="absolute inset-0 w-full h-full"
+                      />
+                    </div>
+
+                    {/* Title & Action CTA Button */}
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-2">
+                      <h2 className="font-serif text-xl sm:text-2xl font-bold text-gray-900 leading-tight">
+                        {activeTutorialVideo.title}
+                      </h2>
+
+                      {activeTutorialVideo.action_text && (
+                        <button
+                          onClick={() => {
+                            if (activeTutorialVideo.action_url?.includes('tab=')) {
+                              const tab = activeTutorialVideo.action_url.split('tab=')[1] as any;
+                              setActiveTab(tab);
+                              setActiveTutorialVideo(null);
+                            } else if (activeTutorialVideo.action_url) {
+                              router.push(activeTutorialVideo.action_url);
+                            } else {
+                              setActiveTab('products');
+                              setActiveTutorialVideo(null);
+                            }
+                          }}
+                          className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md shrink-0"
+                        >
+                          {activeTutorialVideo.action_text}
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Detailed Description */}
+                    <p className="text-xs text-gray-600 leading-relaxed bg-gray-50 p-4 rounded-2xl border border-gray-100 font-medium">
+                      {activeTutorialVideo.description || 'Watch step-by-step video guide on how to add and manage your catalog items efficiently.'}
+                    </p>
+                  </div>
+
+                  {/* RIGHT: Related Videos List Sidebar (4 cols - Screenshot 2) */}
+                  <div className="lg:col-span-4 space-y-3 border-t lg:border-t-0 lg:border-l border-gray-100 pt-4 lg:pt-0 lg:pl-6">
+                    <h3 className="font-serif text-base font-bold text-gray-900 border-b border-gray-100 pb-2">
+                      Related Videos
+                    </h3>
+
+                    <div className="space-y-3 max-h-[520px] overflow-y-auto pr-1 scrollbar-none">
+                      {tutorials.map((tut) => {
+                        const isPlaying = tut.id === activeTutorialVideo.id;
+                        const thumb = tut.thumbnail_url || getYouTubeThumbnailUrl(tut.video_url);
+
+                        return (
+                          <button
+                            key={tut.id}
+                            onClick={() => setActiveTutorialVideo(tut)}
+                            className={`w-full text-left p-2.5 rounded-2xl border transition-all flex items-center gap-3 ${
+                              isPlaying
+                                ? 'bg-blue-50 border-blue-300 ring-2 ring-blue-500/20 shadow-sm'
+                                : 'bg-gray-50 hover:bg-gray-100 border-gray-200'
+                            }`}
+                          >
+                            <div className="relative w-24 h-14 rounded-xl overflow-hidden bg-gray-200 shrink-0 border border-gray-300">
+                              <img src={thumb} alt={tut.title} className="w-full h-full object-cover" />
+                              <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                                <Play className="w-4 h-4 text-white fill-white" />
+                              </div>
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                              <h4 className={`text-xs font-bold leading-snug line-clamp-2 ${isPlaying ? 'text-blue-900' : 'text-gray-800'}`}>
+                                {tut.title}
+                              </h4>
+                              {isPlaying && (
+                                <span className="text-[10px] font-extrabold text-blue-600 block mt-1">
+                                  ▶ Currently Playing
+                                </span>
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            ) : (
+              /* VIEW B: TUTORIALS GRID VIEW (MATCHING USER SCREENSHOT 1) */
+              <div className="space-y-6">
+                
+                {/* Header Strip */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-gray-200/80 shadow-sm">
+                  <div>
+                    <h2 className="font-serif text-xl sm:text-2xl font-bold text-gray-900">
+                      Category: Manage Catalog
+                    </h2>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Step-by-step video guides to manage products, categories, wholesale pricing, and digital PDF catalogs.
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={handleOpenAddTutorialModal}
+                    className="bg-brand-600 hover:bg-brand-700 text-white px-5 py-2.5 rounded-2xl text-xs font-bold transition-all shadow-md flex items-center gap-2 shrink-0"
+                  >
+                    <Plus className="w-4 h-4" /> Add Tutorial Video
+                  </button>
+                </div>
+
+                {/* Grid Cards (Matching User Screenshot 1 Layout) */}
+                {tutorials.length === 0 ? (
+                  <div className="bg-white rounded-3xl p-12 text-center border border-gray-200 shadow-sm space-y-4">
+                    <div className="w-14 h-14 rounded-2xl bg-brand-50 text-brand-700 flex items-center justify-center mx-auto border border-brand-100">
+                      <Video className="w-7 h-7" />
+                    </div>
+                    <div className="max-w-md mx-auto space-y-1">
+                      <h3 className="font-serif font-bold text-lg text-gray-900">No Tutorial Videos Yet</h3>
+                      <p className="text-xs text-gray-500">
+                        Add video guides with YouTube links, titles, and descriptions. They will appear right here in your catalog guides dashboard.
+                      </p>
+                    </div>
+                    <button
+                      onClick={handleOpenAddTutorialModal}
+                      className="bg-brand-600 hover:bg-brand-700 text-white px-6 py-3 rounded-2xl text-xs font-bold transition-all shadow-md inline-flex items-center gap-2"
+                    >
+                      <Plus className="w-4 h-4" /> Add Your First Tutorial Video
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+                    {tutorials.map((tut) => {
+                    const thumb = tut.thumbnail_url || getYouTubeThumbnailUrl(tut.video_url);
+
+                    return (
+                      <div
+                        key={tut.id}
+                        className="group relative rounded-2xl overflow-hidden bg-gray-900 shadow-md border border-gray-200 cursor-pointer transition-all hover:scale-[1.02] hover:shadow-xl min-h-[190px] flex flex-col justify-between"
+                        onClick={() => setActiveTutorialVideo(tut)}
+                      >
+                        {/* Background Thumbnail Image */}
+                        <img
+                          src={thumb}
+                          alt={tut.title}
+                          className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-90"
+                        />
+
+                        {/* Top Action Menu (Edit / Delete) */}
+                        <div className="relative z-10 p-2.5 flex justify-between items-start opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-b from-black/60 to-transparent">
+                          <span className="text-[10px] font-bold bg-black/70 text-white backdrop-blur-md px-2 py-0.5 rounded-md">
+                            {tut.category || 'Manage Catalog'}
+                          </span>
+                          <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              onClick={() => handleOpenEditTutorialModal(tut)}
+                              className="p-1.5 bg-white/90 hover:bg-white text-gray-800 rounded-lg shadow-sm"
+                              title="Edit Tutorial"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteTutorial(tut.id)}
+                              className="p-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-sm"
+                              title="Delete Tutorial"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Center Play Button Overlay */}
+                        <div className="relative z-10 self-center my-auto py-2">
+                          <div className="w-12 h-12 rounded-full bg-blue-600/90 group-hover:bg-blue-600 text-white flex items-center justify-center shadow-lg transition-all group-hover:scale-110">
+                            <Play className="w-5 h-5 fill-white ml-0.5" />
+                          </div>
+                        </div>
+
+                        {/* Bottom Dark Banner Box with Title (Matching User Screenshot 1) */}
+                        <div className="relative z-10 w-full bg-black/85 backdrop-blur-sm border-t border-white/10 px-3 py-2.5 min-h-[54px] flex items-center justify-center">
+                          <h3 className="text-xs sm:text-sm font-bold text-white text-center leading-tight tracking-tight line-clamp-2 drop-shadow-md">
+                            {tut.title}
+                          </h3>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                )}
+
+              </div>
+            )}
+
+          </div>
+        )}
       </main>
 
       {/* --- MODAL: Add / Edit Product --- */}
@@ -1730,19 +2157,113 @@ export default function AdminDashboardPage() {
                 />
               </div>
 
-              {/* Images Upload */}
+              {/* ✨ Dynamic Custom Specifications Fields */}
+              <div className="p-4 bg-amber-50/70 border border-amber-200 rounded-2xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-amber-950 flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4 text-amber-600" />
+                    Custom Specifications (Dynamic Client Fields)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const current = parseCustomFields(editingProduct.custom_fields);
+                      setEditingProduct({
+                        ...editingProduct,
+                        custom_fields: [...current, { label: '', value: '' }]
+                      });
+                    }}
+                    className="text-[11px] font-bold text-amber-800 bg-amber-100 hover:bg-amber-200 px-3 py-1 rounded-xl border border-amber-300 flex items-center gap-1 transition-all cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Add Custom Spec Field
+                  </button>
+                </div>
+
+                {/* Quick Presets Pills */}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-[10px] text-gray-500 font-bold">Quick Presets:</span>
+                  {['Work Type', 'Stitching', 'Occasion', 'Wash Care', 'Size Range', 'MOQ Sets'].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => {
+                        const current = parseCustomFields(editingProduct.custom_fields);
+                        if (!current.some(f => f.label.toLowerCase() === preset.toLowerCase())) {
+                          setEditingProduct({
+                            ...editingProduct,
+                            custom_fields: [...current, { label: preset, value: '' }]
+                          });
+                        }
+                      }}
+                      className="text-[10px] font-semibold bg-white hover:bg-amber-100 text-gray-700 hover:text-amber-900 border border-amber-200 px-2 py-0.5 rounded-lg transition-all"
+                    >
+                      + {preset}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Field Rows */}
+                {parseCustomFields(editingProduct.custom_fields).length === 0 ? (
+                  <p className="text-[11px] text-gray-500 font-medium italic">
+                    No custom fields added yet. Click preset chips above or "+ Add Custom Spec Field" to create custom spec labels.
+                  </p>
+                ) : (
+                  <div className="space-y-2 pt-1">
+                    {parseCustomFields(editingProduct.custom_fields).map((field, idx) => (
+                      <div key={idx} className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={field.label}
+                          onChange={(e) => {
+                            const current = parseCustomFields(editingProduct.custom_fields);
+                            current[idx].label = e.target.value;
+                            setEditingProduct({ ...editingProduct, custom_fields: [...current] });
+                          }}
+                          placeholder="Label (e.g. Work Type)"
+                          className="w-2/5 px-3 py-2 bg-white border border-amber-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-amber-500 outline-none text-gray-800"
+                        />
+                        <input
+                          type="text"
+                          value={field.value}
+                          onChange={(e) => {
+                            const current = parseCustomFields(editingProduct.custom_fields);
+                            current[idx].value = e.target.value;
+                            setEditingProduct({ ...editingProduct, custom_fields: [...current] });
+                          }}
+                          placeholder="Value (e.g. Heavy Zari & Mirror Work)"
+                          className="flex-1 px-3 py-2 bg-white border border-amber-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-amber-500 outline-none text-gray-800"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const current = parseCustomFields(editingProduct.custom_fields);
+                            const updated = current.filter((_, i) => i !== idx);
+                            setEditingProduct({ ...editingProduct, custom_fields: updated });
+                          }}
+                          className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl border border-red-200 transition-colors shrink-0"
+                          title="Remove Custom Field"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Images Upload (Max 5 Images) */}
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="block text-xs font-bold text-gray-700">Product Images (Maximum 2 Images)</label>
-                  <span className={`text-[11px] font-bold ${(editingProduct.images || []).length >= 2 ? 'text-amber-600' : 'text-gray-500'}`}>
-                    {(editingProduct.images || []).length}/2 Images
+                  <label className="block text-xs font-bold text-gray-700">Product Images (Maximum 5 Images)</label>
+                  <span className={`text-[11px] font-bold ${(editingProduct.images || []).length >= 5 ? 'text-amber-600' : 'text-gray-500'}`}>
+                    {(editingProduct.images || []).length}/5 Images
                   </span>
                 </div>
                 <div className="flex items-center gap-3">
-                  {(editingProduct.images || []).length < 2 ? (
+                  {(editingProduct.images || []).length < 5 ? (
                     <label className="cursor-pointer bg-brand-50 hover:bg-brand-100 text-brand-700 px-4 py-2.5 rounded-xl border border-brand-200 text-xs font-bold flex items-center gap-2 transition-all">
                       {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                      Upload Image Files (Max 2)
+                      Upload Image Files (Max 5)
                       <input
                         type="file"
                         accept="image/*"
@@ -1753,7 +2274,7 @@ export default function AdminDashboardPage() {
                     </label>
                   ) : (
                     <div className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2 rounded-xl">
-                      ⚠️ Limit reached: Maximum 2 images per product. Remove an image to upload another.
+                      ⚠️ Limit reached: Maximum 5 images per product. Remove an image to upload another.
                     </div>
                   )}
                 </div>
@@ -1775,6 +2296,84 @@ export default function AdminDashboardPage() {
                         </button>
                       </div>
                     ))}
+                  </div>
+                )}
+              </div>
+
+              {/* YouTube Video Link */}
+              <div className="p-4 bg-red-50/60 rounded-2xl border border-red-100 space-y-2">
+                <label className="block text-xs font-bold text-gray-800 flex items-center gap-1.5">
+                  <span className="w-5 h-5 rounded-full bg-red-600 text-white flex items-center justify-center text-[10px] font-bold">▶</span>
+                  YouTube Product Video Link (Plays In-Web)
+                </label>
+                <input
+                  type="url"
+                  value={editingProduct.youtube_url || ''}
+                  onChange={(e) => setEditingProduct({ ...editingProduct, youtube_url: e.target.value })}
+                  placeholder="https://www.youtube.com/watch?v=... or https://youtu.be/..."
+                  className="w-full px-4 py-2.5 bg-white border border-red-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-red-500 outline-none"
+                />
+                <p className="text-[11px] text-gray-500">
+                  Paste YouTube video or Shorts link. The video will play directly on the web app in an embedded player.
+                </p>
+              </div>
+
+              {/* Digital PDF Catalog Upload */}
+              <div className="p-4 bg-blue-50/60 rounded-2xl border border-blue-100 space-y-3">
+                <label className="block text-xs font-bold text-gray-800 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    📄 Catalog PDF Document / Rate Sheet
+                  </span>
+                  {editingProduct.pdf_url && (
+                    <span className="text-[10px] bg-emerald-600 text-white font-bold px-2 py-0.5 rounded-full">
+                      ✓ PDF Uploaded
+                    </span>
+                  )}
+                </label>
+
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                  <label className="cursor-pointer bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all shrink-0">
+                    {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                    Upload Catalog PDF
+                    <input
+                      type="file"
+                      accept="application/pdf,.pdf"
+                      onChange={handlePdfFileUpload}
+                      className="hidden"
+                    />
+                  </label>
+
+                  <input
+                    type="text"
+                    value={editingProduct.pdf_url || ''}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, pdf_url: e.target.value })}
+                    placeholder="Or paste direct PDF URL..."
+                    className="w-full px-3 py-2 bg-white border border-blue-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-blue-500 outline-none"
+                  />
+                </div>
+
+                {editingProduct.pdf_url && (
+                  <div className="flex items-center justify-between bg-white p-2.5 rounded-xl border border-blue-200 text-xs">
+                    <span className="truncate max-w-[280px] font-medium text-blue-900">
+                      📄 {editingProduct.pdf_url}
+                    </span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <a
+                        href={editingProduct.pdf_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-700 hover:underline font-bold text-[11px]"
+                      >
+                        Preview PDF
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => setEditingProduct({ ...editingProduct, pdf_url: '' })}
+                        className="text-red-600 hover:text-red-800 text-[11px] font-bold"
+                      >
+                        Remove
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1979,6 +2578,185 @@ export default function AdminDashboardPage() {
                 Delete Item
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL: Add / Edit Tutorial Video --- */}
+      {isTutorialModalOpen && editingTutorial && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-8 space-y-6 max-h-[90vh] overflow-y-auto my-8 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+              <h3 className="font-serif font-bold text-xl text-gray-900 flex items-center gap-2">
+                <Video className="w-5 h-5 text-brand-600" />
+                {editingTutorial.id ? 'Edit Tutorial Video' : 'Add New Tutorial Video'}
+              </h3>
+              <button
+                onClick={() => setIsTutorialModalOpen(false)}
+                className="p-1 text-gray-400 hover:text-gray-600 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveTutorial} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Video Title *</label>
+                <input
+                  type="text"
+                  value={editingTutorial.title || ''}
+                  onChange={(e) => setEditingTutorial({ ...editingTutorial, title: e.target.value })}
+                  placeholder="e.g. How to Upload Product Video (Via Android)"
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1 flex items-center justify-between">
+                  <span>YouTube Video Link *</span>
+                  <span className="text-[10px] text-gray-400">Standard, Shorts or Embed URL</span>
+                </label>
+                <input
+                  type="url"
+                  value={editingTutorial.video_url || ''}
+                  onChange={(e) => setEditingTutorial({ ...editingTutorial, video_url: e.target.value })}
+                  placeholder="https://www.youtube.com/watch?v=..."
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Description / Guide Overview</label>
+                <textarea
+                  rows={3}
+                  value={editingTutorial.description || ''}
+                  onChange={(e) => setEditingTutorial({ ...editingTutorial, description: e.target.value })}
+                  placeholder="Write a short summary explaining what this video guide teaches..."
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Category / Section</label>
+                  <input
+                    type="text"
+                    value={editingTutorial.category || 'Manage Catalog'}
+                    onChange={(e) => setEditingTutorial({ ...editingTutorial, category: e.target.value })}
+                    placeholder="e.g. Manage Catalog"
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">CTA Action Button Text</label>
+                  <input
+                    type="text"
+                    value={editingTutorial.action_text || ''}
+                    onChange={(e) => setEditingTutorial({ ...editingTutorial, action_text: e.target.value })}
+                    placeholder="e.g. Add Products or Manage Categories"
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Intuitive Target Selection for Client/Admin */}
+              <div className="p-4 bg-blue-50/70 border border-blue-200 rounded-2xl space-y-3">
+                <label className="block text-xs font-bold text-gray-800 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 text-blue-900 font-bold">
+                    🎯 Action Button Target (Where does button redirect?)
+                  </span>
+                  <span className="text-[10px] text-blue-700 bg-blue-100 font-bold px-2 py-0.5 rounded-full">
+                    Client Friendly
+                  </span>
+                </label>
+
+                <select
+                  value={
+                    ['tab=products', 'tab=categories', 'tab=banners', 'tab=security', 'tab=settings', '/admin/insights', 'tab=tutorials', '/'].includes(editingTutorial.action_url || '')
+                      ? editingTutorial.action_url || 'tab=products'
+                      : editingTutorial.action_url
+                      ? 'custom'
+                      : 'tab=products'
+                  }
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const presets: Record<string, { url: string; defaultText: string }> = {
+                      'tab=products': { url: 'tab=products', defaultText: 'Add Products' },
+                      'tab=categories': { url: 'tab=categories', defaultText: 'Manage Categories' },
+                      'tab=banners': { url: 'tab=banners', defaultText: 'Manage Banners' },
+                      'tab=security': { url: 'tab=security', defaultText: 'Update Password' },
+                      'tab=settings': { url: 'tab=settings', defaultText: 'Store Settings' },
+                      '/admin/insights': { url: '/admin/insights', defaultText: 'View Insights' },
+                      'tab=tutorials': { url: 'tab=tutorials', defaultText: 'Catalog Guides' },
+                      '/': { url: '/', defaultText: 'Visit Storefront' },
+                    };
+
+                    if (val === 'custom') {
+                      setEditingTutorial({
+                        ...editingTutorial,
+                        action_url: 'https://',
+                      });
+                    } else if (presets[val]) {
+                      setEditingTutorial({
+                        ...editingTutorial,
+                        action_url: presets[val].url,
+                        action_text: editingTutorial.action_text || presets[val].defaultText,
+                      });
+                    }
+                  }}
+                  className="w-full px-4 py-2.5 bg-white border border-blue-200 rounded-xl text-xs font-bold text-gray-800 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer"
+                >
+                  <option value="tab=products">📦 Products Catalogue Tab (tab=products)</option>
+                  <option value="tab=categories">🏷️ Categories Management Tab (tab=categories)</option>
+                  <option value="tab=banners">🖼️ Banner Slides Tab (tab=banners)</option>
+                  <option value="tab=security">🔒 Password & Security Tab (tab=security)</option>
+                  <option value="tab=settings">⚙️ Store Settings Tab (tab=settings)</option>
+                  <option value="/admin/insights">📊 Analytics & Insights Page (/admin/insights)</option>
+                  <option value="tab=tutorials">🎥 Tutorial Guides Tab (tab=tutorials)</option>
+                  <option value="/">🛍️ Public Storefront Home (/)</option>
+                  <option value="custom">🔗 Custom URL or External Link...</option>
+                </select>
+
+                {/* Show custom input if value is custom / custom link */}
+                {!['tab=products', 'tab=categories', 'tab=banners', 'tab=security', 'tab=settings', '/admin/insights', 'tab=tutorials', '/'].includes(editingTutorial.action_url || '') && (
+                  <div className="pt-1">
+                    <label className="block text-[11px] font-semibold text-gray-600 mb-1">Custom Link / Target URL:</label>
+                    <input
+                      type="text"
+                      value={editingTutorial.action_url || ''}
+                      onChange={(e) => setEditingTutorial({ ...editingTutorial, action_url: e.target.value })}
+                      placeholder="e.g. https://example.com or tab=products"
+                      className="w-full px-4 py-2 bg-white border border-blue-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-blue-500 outline-none text-gray-800"
+                    />
+                  </div>
+                )}
+
+                {/* Explanation text */}
+                <p className="text-[11px] text-blue-800 leading-snug font-medium pt-1 border-t border-blue-200/60">
+                  💡 <strong>How it works:</strong> When a user watches this video, clicking the action button{' '}
+                  <span className="font-bold underline text-blue-900">"{editingTutorial.action_text || 'Action Text'}"</span> will redirect them directly to this target.
+                </p>
+              </div>
+
+              <div className="pt-3 border-t border-gray-100 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsTutorialModalOpen(false)}
+                  className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-md flex items-center gap-2"
+                >
+                  <Save className="w-4 h-4" /> Save Tutorial
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
