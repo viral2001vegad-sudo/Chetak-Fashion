@@ -543,22 +543,12 @@ export default function AdminDashboardPage() {
     const files = Array.from(e.target.files || []);
     if (files.length === 0 || !editingProduct) return;
 
-    if (targetField === 'main') {
-      const currentImages = editingProduct.images || [];
-      if (currentImages.length >= 5) {
-        showToast('Maximum 5 images allowed per product!');
-        e.target.value = '';
-        return;
-      }
-    }
-
     setIsUploading(true);
     const uploadedUrls: string[] = [];
 
     try {
       const currentImages = editingProduct.images || [];
-      const remainingSlots = targetField === 'main' ? 5 - currentImages.length : 1;
-      const filesToUpload = files.slice(0, remainingSlots);
+      const filesToUpload = targetField === 'main' ? files : files.slice(0, 1);
 
       for (const file of filesToUpload) {
         const formData = new FormData();
@@ -577,9 +567,9 @@ export default function AdminDashboardPage() {
 
       if (uploadedUrls.length > 0) {
         if (targetField === 'main') {
-          const combined = [...currentImages, ...uploadedUrls].slice(0, 5);
+          const combined = [...currentImages, ...uploadedUrls];
           setEditingProduct({ ...editingProduct, images: combined });
-          showToast(`${uploadedUrls.length} image(s) uploaded! (Max 5 images limit)`);
+          showToast(`${uploadedUrls.length} image(s) uploaded successfully!`);
         } else {
           setEditingProduct({ ...editingProduct, preview_image: uploadedUrls[0] });
           showToast('Teaser image uploaded!');
@@ -871,7 +861,7 @@ export default function AdminDashboardPage() {
     setFormError('');
 
     try {
-      const sanitizedImages = (editingProduct.images || []).filter(img => img && img.trim().length > 0).slice(0, 5);
+      const sanitizedImages = (editingProduct.images || []).filter(img => img && img.trim().length > 0);
       const validCustomFields = filterValidCustomFields(editingProduct.custom_fields);
 
       // Prepend fabric specs & custom specs to description for seamless card & detail rendering
@@ -2251,32 +2241,26 @@ export default function AdminDashboardPage() {
                 )}
               </div>
 
-              {/* Images Upload (Max 5 Images) */}
+              {/* Images Upload (Multiple Images Supported) */}
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="block text-xs font-bold text-gray-700">Product Images (Maximum 5 Images)</label>
-                  <span className={`text-[11px] font-bold ${(editingProduct.images || []).length >= 5 ? 'text-amber-600' : 'text-gray-500'}`}>
-                    {(editingProduct.images || []).length}/5 Images
+                  <label className="block text-xs font-bold text-gray-700">Product Images</label>
+                  <span className="text-[11px] font-bold text-brand-600">
+                    {(editingProduct.images || []).length} Image(s) Attached
                   </span>
                 </div>
                 <div className="flex items-center gap-3">
-                  {(editingProduct.images || []).length < 5 ? (
-                    <label className="cursor-pointer bg-brand-50 hover:bg-brand-100 text-brand-700 px-4 py-2.5 rounded-xl border border-brand-200 text-xs font-bold flex items-center gap-2 transition-all">
-                      {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                      Upload Image Files (Max 5)
-                      <input
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        onChange={(e) => handleFileUpload(e, 'main')}
-                        className="hidden"
-                      />
-                    </label>
-                  ) : (
-                    <div className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2 rounded-xl">
-                      ⚠️ Limit reached: Maximum 5 images per product. Remove an image to upload another.
-                    </div>
-                  )}
+                  <label className="cursor-pointer bg-brand-50 hover:bg-brand-100 text-brand-700 px-4 py-2.5 rounded-xl border border-brand-200 text-xs font-bold flex items-center gap-2 transition-all">
+                    {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                    Upload Product Images
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={(e) => handleFileUpload(e, 'main')}
+                      className="hidden"
+                    />
+                  </label>
                 </div>
 
                 {editingProduct.images && editingProduct.images.length > 0 && (
@@ -2290,10 +2274,16 @@ export default function AdminDashboardPage() {
                             const updated = editingProduct.images?.filter((_, i) => i !== idx);
                             setEditingProduct({ ...editingProduct, images: updated });
                           }}
-                          className="absolute top-1 right-1 bg-red-600 text-white p-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="absolute top-1 right-1 bg-red-600 text-white p-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow"
+                          title="Remove Image"
                         >
                           <X className="w-3 h-3" />
                         </button>
+                        {idx === 0 && (
+                          <span className="absolute bottom-0 inset-x-0 bg-brand-600 text-white text-[9px] font-bold text-center py-0.5 opacity-90">
+                            Cover
+                          </span>
+                        )}
                       </div>
                     ))}
                   </div>

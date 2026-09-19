@@ -62,7 +62,8 @@ export async function POST(req: NextRequest) {
     }
 
     const defaultImages = ['https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=800&auto=format&fit=crop&q=80'];
-    const validImages = Array.isArray(images) && images.length > 0 ? images.slice(0, 5) : defaultImages;
+    const cleanedImages = Array.isArray(images) ? images.filter((img: any) => typeof img === 'string' && img.trim().length > 0) : [];
+    const validImages = cleanedImages.length > 0 ? cleanedImages : defaultImages;
 
     let finalName = name.trim();
     if (volume && String(volume).trim().length > 0) {

@@ -255,7 +255,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   )}
                 </div>
 
-                {/* Thumbnail Navigation strip (Up to 5 images supported) */}
+                {/* Thumbnail Navigation strip */}
                 {images.length > 1 && (
                   <div className="flex gap-2 mt-3 overflow-x-auto pb-1 scrollbar-none justify-center">
                     {images.map((img, idx) => (
