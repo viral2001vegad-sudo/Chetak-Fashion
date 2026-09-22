@@ -44,7 +44,8 @@ import {
   ChevronRight,
   Video,
   Play,
-  ArrowLeft
+  ArrowLeft,
+  Star
 } from 'lucide-react';
 
 export default function AdminDashboardPage() {
@@ -96,6 +97,13 @@ export default function AdminDashboardPage() {
   const [editingCatName, setEditingCatName] = useState('');
   const [editingCatImageUrl, setEditingCatImageUrl] = useState('');
   const [isUploadingCatImage, setIsUploadingCatImage] = useState(false);
+
+  // Inline Category Add State (Inside Product Dialog)
+  const [isInlineAddingCat, setIsInlineAddingCat] = useState(false);
+  const [inlineCatName, setInlineCatName] = useState('');
+  const [inlineCatImageUrl, setInlineCatImageUrl] = useState('');
+  const [isSavingInlineCat, setIsSavingInlineCat] = useState(false);
+  const [isUploadingInlineCatImage, setIsUploadingInlineCatImage] = useState(false);
 
   // Banners Modal & State
   const [isBannerModalOpen, setIsBannerModalOpen] = useState(false);
@@ -370,6 +378,75 @@ export default function AdminDashboardPage() {
       showToast('Error adding category');
     } finally {
       setIsAddingCat(false);
+    }
+  };
+
+  const handleInlineCatImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingInlineCatImage(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/admin/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (data.url) {
+        setInlineCatImageUrl(data.url);
+        showToast('Category cover photo uploaded!');
+      } else {
+        showToast('Image upload failed');
+      }
+    } catch (err) {
+      showToast('Error uploading category image');
+    } finally {
+      setIsUploadingInlineCatImage(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleCreateInlineCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inlineCatName.trim()) return;
+    setIsSavingInlineCat(true);
+    try {
+      const res = await fetch('/api/admin/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: inlineCatName.trim(),
+          image_url: inlineCatImageUrl.trim() || null,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.category) {
+        const updatedList = data.categories || [...categories, data.category];
+        setCategories(updatedList);
+        if (editingProduct) {
+          const currentSelected = editingProduct.category_ids || (editingProduct.category_id ? [editingProduct.category_id] : []);
+          const updatedSelected = Array.from(new Set([...currentSelected, data.category.id]));
+          setEditingProduct({
+            ...editingProduct,
+            category_id: data.category.id,
+            category_ids: updatedSelected,
+          });
+        }
+        showToast(`Category "${data.category.name}" created & selected!`);
+        setInlineCatName('');
+        setInlineCatImageUrl('');
+        setIsInlineAddingCat(false);
+      } else {
+        showToast(data.message || 'Failed to create category');
+      }
+    } catch (err) {
+      showToast('Error creating category');
+    } finally {
+      setIsSavingInlineCat(false);
     }
   };
 
@@ -1755,23 +1832,80 @@ export default function AdminDashboardPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Instagram Link</label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                    Instagram Profile / Instaform Link
+                  </label>
                   <input
                     type="url"
-                    value={settingsForm.instagram}
+                    value={settingsForm.instagram || ''}
                     onChange={(e) => setSettingsForm({ ...settingsForm, instagram: e.target.value })}
+                    placeholder="https://instagram.com/chetakfashion"
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none"
+                  />
+                  <p className="text-[10px] text-gray-400 mt-1">Manage your official Instagram profile or Instaform link.</p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                    Facebook Page / Form Link
+                  </label>
+                  <input
+                    type="url"
+                    value={settingsForm.facebookPageUrl || ''}
+                    onChange={(e) => setSettingsForm({ ...settingsForm, facebookPageUrl: e.target.value })}
+                    placeholder="https://facebook.com/chetakfashion"
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none"
+                  />
+                  <p className="text-[10px] text-gray-400 mt-1">Manage your official Facebook page or ad form link.</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Google Maps Location URL</label>
+                  <input
+                    type="url"
+                    value={settingsForm.googleMapsUrl || ''}
+                    onChange={(e) => setSettingsForm({ ...settingsForm, googleMapsUrl: e.target.value })}
+                    placeholder="https://maps.google.com/?q=..."
                     className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Google Maps URL</label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1 flex items-center gap-1">
+                    <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                    Google / Store Review URL
+                  </label>
                   <input
                     type="url"
-                    value={settingsForm.googleMapsUrl}
-                    onChange={(e) => setSettingsForm({ ...settingsForm, googleMapsUrl: e.target.value })}
+                    value={settingsForm.reviewUrl || ''}
+                    onChange={(e) => setSettingsForm({ ...settingsForm, reviewUrl: e.target.value })}
+                    placeholder="https://g.page/r/chetakfashion/review"
                     className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none"
                   />
+                  <p className="text-[10px] text-gray-400 mt-1">Manage customer Google review or rating feedback URL.</p>
+                </div>
+              </div>
+
+              {/* Address Hide / Unhide Option */}
+              <div className="pt-4 border-t border-gray-100">
+                <div className="p-4 bg-amber-50/70 border border-amber-200/80 rounded-2xl flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    id="hideAddressToggle"
+                    checked={Boolean(settingsForm.hideAddress)}
+                    onChange={(e) => setSettingsForm({ ...settingsForm, hideAddress: e.target.checked })}
+                    className="w-4 h-4 mt-0.5 text-brand-600 rounded border-gray-300 focus:ring-brand-500 cursor-pointer"
+                  />
+                  <div>
+                    <label htmlFor="hideAddressToggle" className="text-xs font-bold text-gray-900 cursor-pointer select-none">
+                      Hide Business Address on Public Catalogue Side
+                    </label>
+                    <p className="text-[11px] text-gray-600 mt-0.5">
+                      When enabled, your physical shop address and Google Maps directions link will be <strong>hidden</strong> from catalog headers, footers, product details, and store banners for public users.
+                    </p>
+                  </div>
                 </div>
               </div>
 
@@ -2056,22 +2190,149 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Category</label>
-                  <select
-                    value={editingProduct.category_id || categories[0]?.id || 'cat-1'}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, category_id: e.target.value })}
-                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold outline-none"
+              {/* Multi-Category Selection & Inline Category Creation Block */}
+              <div className="p-4 bg-brand-50/60 rounded-2xl border border-brand-100/80 space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-gray-800 flex items-center gap-1.5">
+                    <Tag className="w-3.5 h-3.5 text-brand-600" />
+                    Assign Categories (Select One or Multiple)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setIsInlineAddingCat(!isInlineAddingCat)}
+                    className="text-[11px] font-bold text-brand-700 hover:text-brand-900 bg-white hover:bg-brand-100 px-2.5 py-1 rounded-xl border border-brand-200 flex items-center gap-1 transition-all cursor-pointer"
                   >
-                    {categories.map((cat) => (
-                      <option key={cat.id} value={cat.id}>
-                        {cat.name}
-                      </option>
-                    ))}
-                  </select>
+                    <Plus className="w-3.5 h-3.5 text-brand-600" />
+                    {isInlineAddingCat ? 'Close Form' : '+ Add New Category'}
+                  </button>
                 </div>
 
+                {/* Inline Add New Category Box with Cover Image Option */}
+                {isInlineAddingCat && (
+                  <div className="p-3.5 bg-white rounded-2xl border border-brand-200 shadow-sm space-y-3 animate-fade-in">
+                    <span className="text-xs font-bold text-gray-800 block flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Create New Category on the Spot:
+                    </span>
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-700 mb-1">Category Name *</label>
+                        <input
+                          type="text"
+                          value={inlineCatName}
+                          onChange={(e) => setInlineCatName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleCreateInlineCategory(e);
+                            }
+                          }}
+                          placeholder="e.g. Pashmina Suits, Silk Sarees..."
+                          className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-700 mb-1">Category Cover Image</label>
+                        <div className="flex items-center gap-2">
+                          <label className="cursor-pointer bg-brand-50 hover:bg-brand-100 text-brand-700 px-3 py-2 rounded-xl border border-brand-200 text-xs font-bold flex items-center gap-1.5 transition-all shrink-0">
+                            {isUploadingInlineCatImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                            Upload Photo
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handleInlineCatImageUpload}
+                              className="hidden"
+                            />
+                          </label>
+                          <input
+                            type="url"
+                            value={inlineCatImageUrl}
+                            onChange={(e) => setInlineCatImageUrl(e.target.value)}
+                            placeholder="Or paste image URL..."
+                            className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none truncate"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Image Preview thumbnail */}
+                    {inlineCatImageUrl && (
+                      <div className="flex items-center gap-3 bg-gray-50 p-2 rounded-xl border border-gray-200">
+                        <img src={inlineCatImageUrl} alt="Category Cover Preview" className="w-10 h-10 object-cover rounded-lg border border-gray-300" />
+                        <span className="text-[11px] font-medium text-gray-700 truncate flex-1">
+                          Cover photo attached
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setInlineCatImageUrl('')}
+                          className="text-red-600 hover:text-red-800 text-[11px] font-bold px-2 py-1"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    )}
+
+                    <div className="flex justify-end pt-1">
+                      <button
+                        type="button"
+                        disabled={isSavingInlineCat || !inlineCatName.trim()}
+                        onClick={handleCreateInlineCategory}
+                        className="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                      >
+                        {isSavingInlineCat ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                        Add & Select Category
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Multi-Select Category Chips / Pills */}
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  {categories.map((cat) => {
+                    const selectedIds = editingProduct.category_ids && editingProduct.category_ids.length > 0
+                      ? editingProduct.category_ids
+                      : editingProduct.category_id
+                      ? [editingProduct.category_id]
+                      : [];
+                    const isSelected = selectedIds.includes(cat.id);
+
+                    return (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => {
+                          let updated: string[];
+                          if (isSelected) {
+                            updated = selectedIds.filter((id) => id !== cat.id);
+                          } else {
+                            updated = [...selectedIds, cat.id];
+                          }
+                          setEditingProduct({
+                            ...editingProduct,
+                            category_id: updated[0] || cat.id,
+                            category_ids: updated,
+                          });
+                        }}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border cursor-pointer ${
+                          isSelected
+                            ? 'bg-brand-700 text-white border-brand-800 shadow-sm scale-105'
+                            : 'bg-white text-gray-700 hover:bg-gray-100 border-gray-200'
+                        }`}
+                      >
+                        {isSelected ? <Check className="w-3.5 h-3.5 text-yellow-300" /> : <Tag className="w-3.5 h-3.5 text-gray-400" />}
+                        <span>{cat.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <p className="text-[10px] text-gray-500 font-medium">
+                  💡 Click multiple category badges above to assign this product to multiple categories simultaneously.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-700 mb-1">Volume / Catalog Tag</label>
                   <input
@@ -2321,8 +2582,8 @@ export default function AdminDashboardPage() {
                   )}
                 </label>
 
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                  <label className="cursor-pointer bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all shrink-0">
+                <div className="flex items-center gap-2">
+                  <label className="cursor-pointer bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-sm active:scale-95">
                     {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                     Upload Catalog PDF
                     <input
@@ -2332,14 +2593,6 @@ export default function AdminDashboardPage() {
                       className="hidden"
                     />
                   </label>
-
-                  <input
-                    type="text"
-                    value={editingProduct.pdf_url || ''}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, pdf_url: e.target.value })}
-                    placeholder="Or paste direct PDF URL..."
-                    className="w-full px-3 py-2 bg-white border border-blue-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-blue-500 outline-none"
-                  />
                 </div>
 
                 {editingProduct.pdf_url && (

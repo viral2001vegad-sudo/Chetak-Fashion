@@ -11,6 +11,11 @@ export interface BusinessConfig {
   instagram: string;
   googleMapsUrl: string;
   logoPath: string;
+  instaformId?: string;
+  facebookAdId?: string;
+  facebookPageUrl?: string;
+  reviewUrl?: string;
+  hideAddress?: boolean;
   colors: {
     primary: string;
     primaryDark: string;
@@ -32,6 +37,11 @@ export const DEFAULT_BUSINESS_CONFIG: BusinessConfig = {
   instagram: "https://instagram.com/chetakfashion",
   googleMapsUrl: "https://maps.google.com/?q=Radha+Raman+Textile+Market+Saroli+Surat",
   logoPath: "/logo.png",
+  instaformId: "",
+  facebookAdId: "",
+  facebookPageUrl: "https://facebook.com/chetakfashion",
+  reviewUrl: "https://g.page/r/chetakfashion/review",
+  hideAddress: false,
   colors: {
     primary: "#98161E",
     primaryDark: "#7C151B",

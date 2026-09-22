@@ -136,6 +136,7 @@ export default function CataloguePage() {
 
           matchesCategory = Boolean(
             p.category_id === selectedCategoryId ||
+            (p.category_ids && Array.isArray(p.category_ids) && p.category_ids.includes(selectedCategoryId)) ||
             (targetCatName !== '' && (
               (p.category_name && p.category_name.toLowerCase().includes(targetCatName)) ||
               p.name.toLowerCase().includes(targetCatName) ||

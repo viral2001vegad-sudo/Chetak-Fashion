@@ -16,10 +16,19 @@ async function getAllProducts(supabase: any) {
     .select('*')
     .order('sort_order', { ascending: true });
 
-  return (data || []).map((p: any) => ({
-    ...p,
-    category_name: p.category_id ? (catMap[p.category_id] || 'General') : 'General'
-  }));
+  return (data || []).map((p: any) => {
+    let catName = 'General';
+    if (Array.isArray(p.category_ids) && p.category_ids.length > 0) {
+      const names = p.category_ids.map((id: string) => catMap[id]).filter(Boolean);
+      catName = names.length > 0 ? names.join(', ') : (catMap[p.category_id] || 'General');
+    } else if (p.category_id && catMap[p.category_id]) {
+      catName = catMap[p.category_id];
+    }
+    return {
+      ...p,
+      category_name: catName
+    };
+  });
 }
 
 // Admin GET - returns all products directly from Supabase DB
@@ -37,7 +46,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { id, name, volume, description, price, price_visible, category_id, images, in_stock, is_hidden, is_featured, is_locked, password, preview_image, youtube_url, pdf_url, custom_fields } = body;
+    const { id, name, volume, description, price, price_visible, category_id, category_ids, images, in_stock, is_hidden, is_featured, is_locked, password, preview_image, youtube_url, pdf_url, custom_fields } = body;
 
     if (!name || typeof name !== 'string') {
       return NextResponse.json({ message: 'Product name is required' }, { status: 400 });
@@ -50,9 +59,14 @@ export async function POST(req: NextRequest) {
 
     const supabase = createAdminClient();
 
+    // Clean & validate category_ids
+    const validCatIds = Array.isArray(category_ids) ? category_ids.filter(isUUID) : [];
+    
     // Safe category_id resolution to prevent PostgreSQL UUID / FK syntax errors
     let targetCatId: string | null = null;
-    if (isUUID(category_id)) {
+    if (validCatIds.length > 0) {
+      targetCatId = validCatIds[0];
+    } else if (isUUID(category_id)) {
       targetCatId = category_id;
     } else {
       const { data: dbCats } = await supabase.from('categories').select('id').limit(1);
@@ -87,6 +101,7 @@ export async function POST(req: NextRequest) {
       price: price ? parseFloat(String(price)) : null,
       price_visible: price_visible !== false,
       category_id: targetCatId,
+      category_ids: validCatIds.length > 0 ? validCatIds : (targetCatId ? [targetCatId] : []),
       images: validImages,
       in_stock: in_stock !== false,
       is_hidden: is_hidden === true,
@@ -133,10 +148,11 @@ export async function POST(req: NextRequest) {
         .single();
 
       if (updateRes.error && (updateRes.error.code === 'PGRST204' || updateRes.error.message?.includes('column'))) {
-        console.warn('Supabase missing youtube_url/pdf_url/custom_fields column, retrying payload without missing columns...');
+        console.warn('Supabase missing columns, retrying payload without extra columns...');
         delete productPayload.youtube_url;
         delete productPayload.pdf_url;
         delete productPayload.custom_fields;
+        delete productPayload.category_ids;
         updateRes = await supabase
           .from('products')
           .update(productPayload)

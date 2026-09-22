@@ -27,12 +27,34 @@ export function getYouTubeEmbedUrl(url?: string | null): string | null {
  */
 export function isPdfUrl(url?: string | null): boolean {
   if (!url || typeof url !== 'string') return false;
-  const trimmed = url.trim().toLowerCase();
+  const trimmed = url.trim();
+  if (
+    !trimmed ||
+    trimmed === '/' ||
+    trimmed === '#' ||
+    trimmed.toLowerCase() === 'null' ||
+    trimmed.toLowerCase() === 'undefined' ||
+    trimmed.toLowerCase() === 'none' ||
+    trimmed.length < 5
+  ) {
+    return false;
+  }
+
+  const lower = trimmed.toLowerCase();
+  if (lower === '/' || lower === '/admin' || lower === '/products' || lower === '/catalog') {
+    return false;
+  }
+
   return (
-    trimmed.startsWith('data:application/pdf') ||
-    trimmed.endsWith('.pdf') ||
-    trimmed.includes('.pdf?') ||
-    trimmed.includes('application/pdf')
+    lower.startsWith('data:application/pdf') ||
+    lower.startsWith('blob:') ||
+    lower.endsWith('.pdf') ||
+    lower.includes('.pdf?') ||
+    lower.includes('.pdf#') ||
+    lower.includes('application/pdf') ||
+    lower.includes('/storage/v1/object/') ||
+    lower.includes('/catalogs/') ||
+    lower.includes('pdf')
   );
 }
 

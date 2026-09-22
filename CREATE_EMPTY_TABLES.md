@@ -36,6 +36,7 @@ drop table if exists public.store_settings cascade;
 create table public.categories (
   id uuid primary key default gen_random_uuid(),
   name text not null,
+  image_url text,
   sort_order int default 0,
   created_at timestamptz default now()
 );
@@ -44,10 +45,13 @@ create table public.categories (
 create table public.products (
   id uuid primary key default gen_random_uuid(),
   name text not null,
+  volume text,
+  brand_name text,
   description text,
   price numeric,
   price_visible boolean default true,
   category_id uuid references public.categories(id) on delete set null,
+  category_ids uuid[] default '{}',
   images text[] not null default '{}',
   in_stock boolean default true,
   is_hidden boolean default false,
@@ -57,6 +61,7 @@ create table public.products (
   preview_image text,
   youtube_url text,
   pdf_url text,
+  custom_fields jsonb default '[]'::jsonb,
   view_count int default 0,
   enquiry_count int default 0,
   sort_order int default 0,
@@ -197,8 +202,11 @@ values (
     "address": "A-1001 To 1003 & 1034 To 1036, 1st Floor, Radha Raman Textile Mkt. (RRTM-1) Saroli, Surat-395010, Gujarat",
     "gstin": "24FLAPS3668L1ZK",
     "instagram": "https://instagram.com/chetakfashion",
+    "facebookPageUrl": "https://facebook.com/chetakfashion",
+    "reviewUrl": "https://g.page/r/chetakfashion/review",
     "googleMapsUrl": "https://maps.google.com/?q=Radha+Raman+Textile+Market+Saroli+Surat",
-    "logoPath": "/logo.svg",
+    "logoPath": "/logo.png",
+    "hideAddress": false,
     "colors": {
       "primary": "#98161E",
       "primaryDark": "#7C151B",

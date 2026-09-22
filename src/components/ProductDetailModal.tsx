@@ -6,7 +6,7 @@ import { Product, PublicProduct } from '@/types';
 import { BUSINESS_CONFIG } from '@/config/business';
 import { useBusinessConfig } from '@/hooks/useBusinessConfig';
 import { WhatsAppIcon } from '@/components/icons/WhatsAppIcon';
-import { getYouTubeEmbedUrl } from '@/lib/media';
+import { getYouTubeEmbedUrl, isPdfUrl } from '@/lib/media';
 import { parseCustomFields, filterValidCustomFields } from '@/lib/customFields';
 import {
   X,
@@ -23,7 +23,9 @@ import {
   Video,
   FileText,
   ExternalLink,
-  ImageIcon
+  ImageIcon,
+  Maximize2,
+  Star
 } from 'lucide-react';
 
 interface ProductDetailModalProps {
@@ -43,6 +45,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 }) => {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [activeMediaTab, setActiveMediaTab] = useState<'photos' | 'video' | 'pdf'>('photos');
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
 
   useEffect(() => {
     if (product) {
@@ -60,7 +63,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     : [product.preview_image || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=800&auto=format&fit=crop&q=80'];
 
   const youtubeEmbedUrl = getYouTubeEmbedUrl(product.youtube_url);
-  const hasPdfCatalog = Boolean(product.pdf_url && product.pdf_url.trim().length > 0);
+  const hasPdfCatalog = isPdfUrl(product.pdf_url);
 
   const handleSingleEnquireWhatsApp = async () => {
     // Log enquiry server-side
@@ -179,7 +182,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 ▶ Video plays directly inside Chetak Fashion Web Catalog without opening YouTube.
               </p>
             </div>
-          ) : activeMediaTab === 'pdf' && product.pdf_url ? (
+          ) : activeMediaTab === 'pdf' && hasPdfCatalog && product.pdf_url ? (
             /* TAB 2: EMBEDDED PDF CATALOG VIEWER IN WEB */
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -219,18 +222,22 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               
               {/* Main Image Gallery */}
               <div className="bg-gray-100 p-4 flex flex-col justify-between rounded-2xl">
-                <div className="relative aspect-[4/5] w-full rounded-2xl overflow-hidden bg-white shadow-inner">
+                <div
+                  className="relative aspect-[4/5] w-full rounded-2xl overflow-hidden bg-white shadow-inner cursor-pointer group"
+                  onClick={() => setIsLightboxOpen(true)}
+                >
                   <Image
                     src={images[selectedImageIndex] || images[0]}
                     alt={product.name}
                     fill
-                    className="object-cover transition-all duration-300"
+                    className="object-cover transition-transform duration-300 group-hover:scale-105"
                   />
 
                   {/* Photo Counter Badge */}
                   {images.length > 1 && (
-                    <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-md text-white text-[11px] font-bold px-2.5 py-1 rounded-full shadow">
-                      Photo {selectedImageIndex + 1} of {images.length}
+                    <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-md text-white text-[11px] font-bold px-2.5 py-1 rounded-full shadow flex items-center gap-1">
+                      <Maximize2 className="w-3 h-3 text-yellow-300" />
+                      <span>Photo {selectedImageIndex + 1} of {images.length}</span>
                     </div>
                   )}
 
@@ -238,18 +245,26 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   {images.length > 1 && (
                     <>
                       <button
-                        onClick={() => setSelectedImageIndex((prev) => (prev > 0 ? prev - 1 : images.length - 1))}
-                        className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-gray-900 p-2 rounded-full shadow-lg transition-transform active:scale-95"
-                        title="Previous Photo"
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedImageIndex((prev) => (prev > 0 ? prev - 1 : images.length - 1));
+                        }}
+                        className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-gray-900 p-2 rounded-full shadow-lg transition-transform active:scale-95 z-10"
+                        title="Previous Photo (<)"
                       >
-                        <ChevronLeft className="w-5 h-5" />
+                        <ChevronLeft className="w-5 h-5 text-gray-900" />
                       </button>
                       <button
-                        onClick={() => setSelectedImageIndex((prev) => (prev < images.length - 1 ? prev + 1 : 0))}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-gray-900 p-2 rounded-full shadow-lg transition-transform active:scale-95"
-                        title="Next Photo"
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedImageIndex((prev) => (prev < images.length - 1 ? prev + 1 : 0));
+                        }}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-gray-900 p-2 rounded-full shadow-lg transition-transform active:scale-95 z-10"
+                        title="Next Photo (>)"
                       >
-                        <ChevronRight className="w-5 h-5" />
+                        <ChevronRight className="w-5 h-5 text-gray-900" />
                       </button>
                     </>
                   )}
@@ -383,6 +398,17 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   >
                     <WhatsAppIcon className="w-4 h-4 fill-white shrink-0" /> WhatsApp
                   </button>
+
+                  {BUSINESS_CONFIG.reviewUrl && (
+                    <a
+                      href={BUSINESS_CONFIG.reviewUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full py-2.5 px-4 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all"
+                    >
+                      <Star className="w-4 h-4 text-amber-500 fill-amber-500" /> Rate & Review Store on Google
+                    </a>
+                  )}
                 </div>
               </div>
 
@@ -392,6 +418,88 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         </div>
 
       </div>
+
+      {/* FULL-SCREEN IMAGE LIGHTBOX MODAL WITH < AND > ARROWS */}
+      {isLightboxOpen && (
+        <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col justify-between p-4 sm:p-6 animate-fade-in select-none">
+          {/* Top Bar: Title, Counter & Close */}
+          <div className="flex items-center justify-between text-white border-b border-white/10 pb-3.5 z-20">
+            <div>
+              <h3 className="font-serif font-bold text-base sm:text-lg">{product.name}</h3>
+              <p className="text-xs text-gray-400">
+                Photo {selectedImageIndex + 1} of {images.length} • Tap X to close
+              </p>
+            </div>
+            <button
+              onClick={() => setIsLightboxOpen(false)}
+              className="bg-white/10 hover:bg-white/20 text-white p-2.5 rounded-full transition-colors cursor-pointer"
+              title="Close Full Screen"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+
+          {/* Centered Large Photo with Big < > Navigation Arrows */}
+          <div className="relative flex-1 flex items-center justify-center my-3 overflow-hidden">
+            {images.length > 1 && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedImageIndex((prev) => (prev > 0 ? prev - 1 : images.length - 1));
+                }}
+                className="absolute left-2 sm:left-6 z-30 bg-white/20 hover:bg-white/40 text-white p-3.5 sm:p-4 rounded-full backdrop-blur-md transition-all active:scale-90 shadow-2xl border border-white/20 cursor-pointer"
+                title="Previous Image (<)"
+              >
+                <ChevronLeft className="w-7 h-7 sm:w-8 sm:h-8" />
+              </button>
+            )}
+
+            <div className="relative w-full h-full max-w-5xl max-h-[75vh] flex items-center justify-center">
+              <Image
+                src={images[selectedImageIndex] || images[0]}
+                alt={product.name}
+                fill
+                className="object-contain"
+                priority
+              />
+            </div>
+
+            {images.length > 1 && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedImageIndex((prev) => (prev < images.length - 1 ? prev + 1 : 0));
+                }}
+                className="absolute right-2 sm:right-6 z-30 bg-white/20 hover:bg-white/40 text-white p-3.5 sm:p-4 rounded-full backdrop-blur-md transition-all active:scale-90 shadow-2xl border border-white/20 cursor-pointer"
+                title="Next Image (>)"
+              >
+                <ChevronRight className="w-7 h-7 sm:w-8 sm:h-8" />
+              </button>
+            )}
+          </div>
+
+          {/* Bottom Thumbnails Navigation Strip */}
+          {images.length > 1 && (
+            <div className="flex items-center justify-center gap-2.5 overflow-x-auto pt-3 border-t border-white/10 z-20 scrollbar-none">
+              {images.map((img, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setSelectedImageIndex(idx)}
+                  className={`relative w-16 h-20 rounded-xl overflow-hidden shrink-0 border-2 transition-all cursor-pointer ${
+                    selectedImageIndex === idx
+                      ? 'border-amber-400 ring-2 ring-amber-400/50 scale-105 shadow-xl'
+                      : 'border-white/20 opacity-50 hover:opacity-100'
+                  }`}
+                >
+                  <Image src={img} alt={`Thumb ${idx}`} fill className="object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

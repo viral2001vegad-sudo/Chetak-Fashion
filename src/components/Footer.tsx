@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useBusinessConfig } from '@/hooks/useBusinessConfig';
 import { WhatsAppIcon } from '@/components/icons/WhatsAppIcon';
-import { MapPin, Phone, Instagram, ShieldCheck, ExternalLink } from 'lucide-react';
+import { MapPin, Phone, Instagram, Facebook, ShieldCheck, ExternalLink, Star } from 'lucide-react';
 
 export const Footer: React.FC = () => {
   const { config: BUSINESS_CONFIG } = useBusinessConfig();
@@ -34,10 +34,12 @@ export const Footer: React.FC = () => {
             {BUSINESS_CONFIG.tagline}
           </p>
           <div className="text-xs text-gray-400 space-y-1.5 pt-2">
-            <p className="flex items-start gap-2">
-              <MapPin className="w-4 h-4 text-brand-500 shrink-0 mt-0.5" />
-              <span>{BUSINESS_CONFIG.address}</span>
-            </p>
+            {!BUSINESS_CONFIG.hideAddress && (
+              <p className="flex items-start gap-2">
+                <MapPin className="w-4 h-4 text-brand-500 shrink-0 mt-0.5" />
+                <span>{BUSINESS_CONFIG.address}</span>
+              </p>
+            )}
             <p className="text-[11px] text-gray-500 font-mono">GSTIN: {BUSINESS_CONFIG.gstin}</p>
           </div>
         </div>
@@ -65,21 +67,23 @@ export const Footer: React.FC = () => {
               <WhatsAppIcon className="w-3.5 h-3.5 fill-emerald-400 shrink-0" />
               <span>WhatsApp</span>
             </a>
-            <a
-              href={BUSINESS_CONFIG.googleMapsUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-[11px] text-brand-400 hover:text-brand-300 font-semibold"
-            >
-              <ExternalLink className="w-3 h-3" /> Get Directions on Google Maps
-            </a>
+            {!BUSINESS_CONFIG.hideAddress && BUSINESS_CONFIG.googleMapsUrl && (
+              <a
+                href={BUSINESS_CONFIG.googleMapsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-[11px] text-brand-400 hover:text-brand-300 font-semibold"
+              >
+                <ExternalLink className="w-3 h-3" /> Get Directions on Google Maps
+              </a>
+            )}
           </div>
         </div>
 
         {/* Links & Admin */}
         <div className="space-y-3">
           <h4 className="text-xs font-semibold text-white uppercase tracking-wider">
-            Catalogue Access
+            Catalogue Access & Reviews
           </h4>
           <ul className="space-y-2 text-xs text-gray-400">
             <li>
@@ -87,11 +91,32 @@ export const Footer: React.FC = () => {
                 Public Catalogue Grid
               </Link>
             </li>
-            <li>
-              <a href={BUSINESS_CONFIG.instagram} target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors flex items-center gap-1.5">
-                <Instagram className="w-3.5 h-3.5 text-pink-400" /> Follow on Instagram
-              </a>
-            </li>
+            {BUSINESS_CONFIG.reviewUrl && (
+              <li>
+                <a
+                  href={BUSINESS_CONFIG.reviewUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-white transition-colors flex items-center gap-1.5 text-amber-400 font-bold"
+                >
+                  <Star className="w-3.5 h-3.5 fill-amber-400" /> Rate & Review Us on Google
+                </a>
+              </li>
+            )}
+            {BUSINESS_CONFIG.instagram && (
+              <li>
+                <a href={BUSINESS_CONFIG.instagram} target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors flex items-center gap-1.5">
+                  <Instagram className="w-3.5 h-3.5 text-pink-400" /> Follow on Instagram
+                </a>
+              </li>
+            )}
+            {BUSINESS_CONFIG.facebookPageUrl && (
+              <li>
+                <a href={BUSINESS_CONFIG.facebookPageUrl} target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors flex items-center gap-1.5">
+                  <Facebook className="w-3.5 h-3.5 text-blue-500" /> Follow on Facebook
+                </a>
+              </li>
+            )}
           </ul>
         </div>
 

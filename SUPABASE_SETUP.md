@@ -19,7 +19,8 @@ This document contains the complete SQL query scripts to set up a **Fresh Client
 If the client already has a running database and you just want to add the new columns (`custom_fields`, `youtube_url`, `pdf_url`, `tutorial_videos` table, etc.) without deleting any existing data, run this query:
 
 ```sql
--- 1. ADD NEW COLUMNS TO PRODUCTS TABLE
+-- 1. ADD NEW COLUMNS TO PRODUCTS & CATEGORIES TABLES
+ALTER TABLE public.categories ADD COLUMN IF NOT EXISTS image_url TEXT;
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS volume TEXT;
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS brand_name TEXT;
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS top_fabric TEXT;
@@ -28,6 +29,7 @@ ALTER TABLE public.products ADD COLUMN IF NOT EXISTS dupatta_fabric TEXT;
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS youtube_url TEXT;
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS pdf_url TEXT;
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS custom_fields JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS category_ids UUID[] DEFAULT '{}';
 
 -- 2. CREATE TUTORIAL VIDEOS TABLE (IF NOT EXISTS)
 CREATE TABLE IF NOT EXISTS public.tutorial_videos (
@@ -83,7 +85,7 @@ CREATE TABLE public.categories (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 2. PRODUCTS TABLE (Includes YouTube Video, PDF Catalog & Dynamic Custom Fields)
+-- 2. PRODUCTS TABLE (Includes Multi-Category, YouTube Video, PDF Catalog & Dynamic Custom Fields)
 CREATE TABLE public.products (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
@@ -96,6 +98,7 @@ CREATE TABLE public.products (
   price NUMERIC,
   price_visible BOOLEAN DEFAULT TRUE,
   category_id UUID REFERENCES public.categories(id) ON DELETE SET NULL,
+  category_ids UUID[] DEFAULT '{}',
   images TEXT[] NOT NULL DEFAULT '{}',
   in_stock BOOLEAN DEFAULT TRUE,
   is_hidden BOOLEAN DEFAULT FALSE,
@@ -249,8 +252,11 @@ VALUES (
     "address": "A-1001 To 1003 & 1034 To 1036, 1st Floor, Radha Raman Textile Mkt. (RRTM-1) Saroli, Surat-395010, Gujarat",
     "gstin": "24FLAPS3668L1ZK",
     "instagram": "https://instagram.com/chetakfashion",
+    "facebookPageUrl": "https://facebook.com/chetakfashion",
+    "reviewUrl": "https://g.page/r/chetakfashion/review",
     "googleMapsUrl": "https://maps.google.com/?q=Radha+Raman+Textile+Market+Saroli+Surat",
     "logoPath": "/logo.png",
+    "hideAddress": false,
     "colors": {
       "primary": "#98161E",
       "primaryDark": "#7C151B",

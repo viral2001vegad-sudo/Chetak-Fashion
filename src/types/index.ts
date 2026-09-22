@@ -24,6 +24,7 @@ export interface Product {
   price?: number | null;
   price_visible: boolean;
   category_id?: string | null;
+  category_ids?: string[] | null;
   category_name?: string | null;
   images: string[];
   in_stock: boolean;
@@ -52,6 +53,7 @@ export interface PublicProduct {
   dupatta_fabric?: string | null;
   custom_fields?: CustomField[] | Record<string, string> | null;
   category_id?: string | null;
+  category_ids?: string[] | null;
   category_name?: string | null;
   is_locked: boolean;
   in_stock: boolean;

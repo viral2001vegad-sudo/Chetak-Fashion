@@ -12,7 +12,7 @@ import { Product, PublicProduct, EnquiryItem } from '@/types';
 import { MOCK_PRODUCTS } from '@/lib/mockData';
 import { useBusinessConfig } from '@/hooks/useBusinessConfig';
 import { WhatsAppIcon } from '@/components/icons/WhatsAppIcon';
-import { getYouTubeEmbedUrl } from '@/lib/media';
+import { getYouTubeEmbedUrl, isPdfUrl } from '@/lib/media';
 import { parseCustomFields, filterValidCustomFields } from '@/lib/customFields';
 import {
   ArrowLeft,
@@ -36,7 +36,11 @@ import {
   Video,
   FileText,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Maximize2,
+  X,
+  ZoomIn,
+  Star
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -50,6 +54,7 @@ export default function ProductDetailPage() {
   const [relatedProducts, setRelatedProducts] = useState<(Product | PublicProduct)[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedImageIdx, setSelectedImageIdx] = useState(0);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
 
   // Search & Enquiry bucket state
   const [searchQuery, setSearchQuery] = useState('');
@@ -77,6 +82,23 @@ export default function ProductDetailPage() {
 
     fetchProductDetails();
   }, [productId]);
+
+  useEffect(() => {
+    if (!isLightboxOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') {
+        setSelectedImageIdx((prev) => (prev > 0 ? prev - 1 : 0));
+      } else if (e.key === 'ArrowRight') {
+        setSelectedImageIdx((prev) => (prev + 1));
+      } else if (e.key === 'Escape') {
+        setIsLightboxOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isLightboxOpen]);
 
   const fetchProductDetails = async () => {
     // Only set loading if product is not already loaded from cache
@@ -236,7 +258,7 @@ export default function ProductDetailPage() {
 
   const inBucketItem = bucket.find((b) => b.product.id === activeProd.id);
   const youtubeEmbedUrl = (!activeProd.is_locked || isUnlocked) ? getYouTubeEmbedUrl(activeProd.youtube_url) : null;
-  const pdfCatalogUrl = (!activeProd.is_locked || isUnlocked) && activeProd.pdf_url ? activeProd.pdf_url : null;
+  const pdfCatalogUrl = (!activeProd.is_locked || isUnlocked) && isPdfUrl(activeProd.pdf_url) ? activeProd.pdf_url : null;
 
   // WhatsApp Message Text
   const waMessage = `Hello Chetak Fashion! I am interested in ordering:
@@ -290,8 +312,11 @@ Please send catalog PDF and set photos.`;
           {/* LEFT: Multi-photo Gallery (7 columns) */}
           <div className="lg:col-span-7 space-y-4">
             
-            {/* Main High-Res Viewer */}
-            <div className="relative aspect-[4/5] w-full rounded-3xl bg-gray-100 overflow-hidden border border-gray-200 shadow-sm group">
+            {/* Main High-Res Viewer with Click-to-Zoom Lightbox & Navigation Arrows */}
+            <div
+              className="relative aspect-[4/5] w-full rounded-3xl bg-gray-100 overflow-hidden border border-gray-200 shadow-sm group cursor-pointer"
+              onClick={() => setIsLightboxOpen(true)}
+            >
               <Image
                 src={imagesList[selectedImageIdx] || imagesList[0]}
                 alt={activeProd.name}
@@ -315,6 +340,41 @@ Please send catalog PDF and set photos.`;
                   <span>{isUnlocked ? 'Design Unlocked' : 'Password Protected'}</span>
                 </div>
               )}
+
+              {/* Fullscreen Zoom Hint */}
+              <div className="absolute bottom-4 left-4 bg-black/65 backdrop-blur-md text-white text-xs font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 shadow-lg group-hover:bg-brand-700 transition-colors">
+                <Maximize2 className="w-3.5 h-3.5 text-yellow-300" />
+                <span>Photo {selectedImageIdx + 1} of {imagesList.length} (Click Full Screen)</span>
+              </div>
+
+              {/* Prev < & Next > Navigation Arrows directly on main photo */}
+              {imagesList.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedImageIdx((prev) => (prev > 0 ? prev - 1 : imagesList.length - 1));
+                    }}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-gray-900 p-2.5 rounded-full shadow-xl transition-all active:scale-90 border border-gray-200 z-10"
+                    title="Previous Photo (<)"
+                  >
+                    <ChevronLeft className="w-5 h-5 text-gray-900" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedImageIdx((prev) => (prev < imagesList.length - 1 ? prev + 1 : 0));
+                    }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-gray-900 p-2.5 rounded-full shadow-xl transition-all active:scale-90 border border-gray-200 z-10"
+                    title="Next Photo (>)"
+                  >
+                    <ChevronRight className="w-5 h-5 text-gray-900" />
+                  </button>
+                </>
+              )}
             </div>
 
             {/* Thumbnails Row */}
@@ -324,7 +384,7 @@ Please send catalog PDF and set photos.`;
                   <button
                     key={idx}
                     onClick={() => setSelectedImageIdx(idx)}
-                    className={`relative w-20 h-24 rounded-2xl overflow-hidden shrink-0 border-2 transition-all ${
+                    className={`relative w-20 h-24 rounded-2xl overflow-hidden shrink-0 border-2 transition-all cursor-pointer ${
                       selectedImageIdx === idx
                         ? 'border-brand-600 ring-2 ring-brand-600/30 scale-105 shadow-md'
                         : 'border-gray-200 opacity-70 hover:opacity-100'
@@ -336,8 +396,8 @@ Please send catalog PDF and set photos.`;
               </div>
             )}
 
-            <p className="text-[11px] text-gray-400 font-medium text-center">
-              💡 Tip: Tap thumbnails to view full high-definition catalog photos.
+            <p className="text-[11px] text-gray-500 font-medium text-center">
+              💡 Tip: Click on main image or tap <ChevronLeft className="w-3 h-3 inline" /> <ChevronRight className="w-3 h-3 inline" /> arrows to view full screen photos.
             </p>
           </div>
 
@@ -533,6 +593,19 @@ Please send catalog PDF and set photos.`;
                   <Phone className="w-3.5 h-3.5 text-brand-600" />
                   <span>Call Store ({businessConfig.phone})</span>
                 </a>
+
+                {/* 4. Write / Rate Review */}
+                {businessConfig.reviewUrl && (
+                  <a
+                    href={businessConfig.reviewUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2"
+                  >
+                    <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                    <span>Rate & Write Google Review</span>
+                  </a>
+                )}
               </div>
             )}
 
@@ -598,26 +671,65 @@ Please send catalog PDF and set photos.`;
         )}
 
         {/* Store Location & Directions Banner */}
-        <div className="bg-gradient-to-r from-gray-900 via-brand-950 to-gray-900 text-white p-6 sm:p-8 rounded-3xl shadow-soft flex flex-col md:flex-row items-start md:items-center justify-between gap-6 border border-gray-800">
-          <div className="space-y-2 max-w-2xl">
-            <span className="text-[10px] font-bold tracking-widest text-amber-400 uppercase bg-amber-400/10 px-2.5 py-1 rounded-full border border-amber-400/20">
-              Surat Wholesale Showroom & Warehouse
-            </span>
-            <h3 className="font-serif text-xl font-bold text-white">{businessConfig.name}</h3>
-            <p className="text-xs text-gray-300 flex items-start gap-2 leading-relaxed">
-              <MapPin className="w-4 h-4 text-brand-400 shrink-0 mt-0.5" />
-              <span>{businessConfig.address}</span>
-            </p>
+        {!businessConfig.hideAddress && (
+          <div className="bg-gradient-to-r from-gray-900 via-brand-950 to-gray-900 text-white p-6 sm:p-8 rounded-3xl shadow-soft flex flex-col md:flex-row items-start md:items-center justify-between gap-6 border border-gray-800">
+            <div className="space-y-2 max-w-2xl">
+              <span className="text-[10px] font-bold tracking-widest text-amber-400 uppercase bg-amber-400/10 px-2.5 py-1 rounded-full border border-amber-400/20">
+                Surat Wholesale Showroom & Warehouse
+              </span>
+              <h3 className="font-serif text-xl font-bold text-white">{businessConfig.name}</h3>
+              <p className="text-xs text-gray-300 flex items-start gap-2 leading-relaxed">
+                <MapPin className="w-4 h-4 text-brand-400 shrink-0 mt-0.5" />
+                <span>{businessConfig.address}</span>
+              </p>
+            </div>
+            {businessConfig.googleMapsUrl && (
+              <a
+                href={businessConfig.googleMapsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-amber-400 hover:bg-amber-500 text-gray-950 px-5 py-3 rounded-2xl text-xs font-bold transition-all shadow-md flex items-center gap-2 shrink-0"
+              >
+                <ExternalLink className="w-4 h-4" /> Get Store Directions on Maps
+              </a>
+            )}
           </div>
-          <a
-            href={businessConfig.googleMapsUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="bg-amber-400 hover:bg-amber-500 text-gray-950 px-5 py-3 rounded-2xl text-xs font-bold transition-all shadow-md flex items-center gap-2 shrink-0"
-          >
-            <ExternalLink className="w-4 h-4" /> Get Store Directions on Maps
-          </a>
-        </div>
+        )}
+
+        {/* Customer Reviews & Store Rating Card */}
+        {businessConfig.reviewUrl && (
+          <div className="bg-white p-6 sm:p-8 rounded-3xl border border-amber-200/80 shadow-soft flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div className="space-y-2 max-w-2xl">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center text-amber-400">
+                  <Star className="w-5 h-5 fill-amber-400" />
+                  <Star className="w-5 h-5 fill-amber-400" />
+                  <Star className="w-5 h-5 fill-amber-400" />
+                  <Star className="w-5 h-5 fill-amber-400" />
+                  <Star className="w-5 h-5 fill-amber-400" />
+                </div>
+                <span className="text-xs font-bold text-gray-900 bg-amber-100 text-amber-900 px-2.5 py-0.5 rounded-full">
+                  5.0 / 5.0 Rating
+                </span>
+              </div>
+              <h3 className="font-serif text-xl font-bold text-gray-900">
+                Customer Reviews & Store Feedback
+              </h3>
+              <p className="text-xs text-gray-600 leading-relaxed">
+                Satisfied with our Surat wholesale dress material collection? Help other boutique owners and retailers by writing a quick Google review for {businessConfig.name}.
+              </p>
+            </div>
+
+            <a
+              href={businessConfig.reviewUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-amber-500 hover:bg-amber-600 text-white px-6 py-3.5 rounded-2xl text-xs font-extrabold shadow-md hover:shadow-lg transition-all flex items-center gap-2 shrink-0 cursor-pointer"
+            >
+              <Star className="w-4 h-4 fill-white" /> Write a Google Review
+            </a>
+          </div>
+        )}
 
         {/* Related Collections Grid */}
         {relatedProducts.length > 0 && (
@@ -655,6 +767,88 @@ Please send catalog PDF and set photos.`;
         )}
 
       </main>
+
+      {/* FULL-SCREEN IMAGE LIGHTBOX MODAL WITH < AND > ARROWS */}
+      {isLightboxOpen && (
+        <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col justify-between p-4 sm:p-6 animate-fade-in select-none">
+          {/* Top Bar: Title, Counter & Close */}
+          <div className="flex items-center justify-between text-white border-b border-white/10 pb-3.5 z-20">
+            <div>
+              <h3 className="font-serif font-bold text-base sm:text-lg">{activeProd.name}</h3>
+              <p className="text-xs text-gray-400">
+                Photo {selectedImageIdx + 1} of {imagesList.length} • Press Esc or tap X to close
+              </p>
+            </div>
+            <button
+              onClick={() => setIsLightboxOpen(false)}
+              className="bg-white/10 hover:bg-white/20 text-white p-2.5 rounded-full transition-colors cursor-pointer"
+              title="Close Full Screen (Esc)"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+
+          {/* Centered Large Photo with Big < > Navigation Arrows */}
+          <div className="relative flex-1 flex items-center justify-center my-3 overflow-hidden">
+            {imagesList.length > 1 && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedImageIdx((prev) => (prev > 0 ? prev - 1 : imagesList.length - 1));
+                }}
+                className="absolute left-2 sm:left-6 z-30 bg-white/20 hover:bg-white/40 text-white p-3.5 sm:p-4 rounded-full backdrop-blur-md transition-all active:scale-90 shadow-2xl border border-white/20 cursor-pointer"
+                title="Previous Image (<)"
+              >
+                <ChevronLeft className="w-7 h-7 sm:w-8 sm:h-8" />
+              </button>
+            )}
+
+            <div className="relative w-full h-full max-w-5xl max-h-[75vh] flex items-center justify-center">
+              <Image
+                src={imagesList[selectedImageIdx] || imagesList[0]}
+                alt={activeProd.name}
+                fill
+                className="object-contain"
+                priority
+              />
+            </div>
+
+            {imagesList.length > 1 && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedImageIdx((prev) => (prev < imagesList.length - 1 ? prev + 1 : 0));
+                }}
+                className="absolute right-2 sm:right-6 z-30 bg-white/20 hover:bg-white/40 text-white p-3.5 sm:p-4 rounded-full backdrop-blur-md transition-all active:scale-90 shadow-2xl border border-white/20 cursor-pointer"
+                title="Next Image (>)"
+              >
+                <ChevronRight className="w-7 h-7 sm:w-8 sm:h-8" />
+              </button>
+            )}
+          </div>
+
+          {/* Bottom Thumbnails Navigation Strip */}
+          {imagesList.length > 1 && (
+            <div className="flex items-center justify-center gap-2.5 overflow-x-auto pt-3 border-t border-white/10 z-20 scrollbar-none">
+              {imagesList.map((img, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setSelectedImageIdx(idx)}
+                  className={`relative w-16 h-20 rounded-xl overflow-hidden shrink-0 border-2 transition-all cursor-pointer ${
+                    selectedImageIdx === idx
+                      ? 'border-amber-400 ring-2 ring-amber-400/50 scale-105 shadow-xl'
+                      : 'border-white/20 opacity-50 hover:opacity-100'
+                  }`}
+                >
+                  <Image src={img} alt={`Thumb ${idx}`} fill className="object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Main Footer */}
       <Footer />
